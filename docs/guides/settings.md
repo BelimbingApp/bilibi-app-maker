@@ -28,15 +28,18 @@ Restart `./bilibi start` after saving. Your local address is now `https://my-sbg
 
 **Keep `.env.example` in Git; keep your own `.env` out of Git.** The example lists the supported settings without secrets. Your `.env` belongs next to `./bilibi`, even when the Platform sources are stored elsewhere.
 
-Without an override, the launcher names your application after its `origin` repository. For example, `SB-Tape/sbg-bilibi` becomes `https://sbg-bilibi.localhost`. Each checkout also gets its own private database and database port. Copies can run beside one another.
+Without an override, your address is your application folder’s name under `.localhost`. For example, a clone in `acme-erp/` uses `https://acme-erp.localhost`. Names become lowercase, and spaces or other punctuation become hyphens. Each checkout also gets its own private database and database port. Copies can run beside one another.
 
-If two checkouts have the same repository name, choose a different `BILIBI_DEV_HOST` for one. When another checkout owns the address, the launcher prints its own loopback HTTP address instead. Open the address it prints.
+> [!NOTE]
+> Folder-based defaults are being updated separately in the Platform. With the saved Platform version, set `BILIBI_DEV_HOST` explicitly to choose your address.
+
+If two checkouts have the same folder name, choose a different `BILIBI_DEV_HOST` for one. When another checkout owns the address, the launcher prints its own loopback HTTP address instead. Open the address it prints.
 
 The launcher reads only these lines from `.env`:
 
 | Line | What it changes | Default |
 | --- | --- | --- |
-| `BILIBI_DEV_HOST=my-sbg.localhost` | This copy’s HTTPS address; use a name under `.localhost` | The name of your application’s `origin` repository |
+| `BILIBI_DEV_HOST=my-sbg.localhost` | This copy’s HTTPS address; use a name under `.localhost` | Your application folder’s name |
 | `BILIBI_DEV_PORT=4300` | The port Bilibi listens on behind Caddy, the local HTTPS server | The first free port from 4300 |
 | `BILIBI_OPEN_BROWSER=0` | Whether the launcher opens the sign-in page: `1` opens it, `0` leaves it closed | `1` |
 

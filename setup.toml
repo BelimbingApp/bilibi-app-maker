@@ -3,4 +3,4 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [platform]
 url = "https://github.com/BelimbingApp/bilibi.git"
-commit = "14a237ad37625b6c6b38738e33624833caa0d140"
+commit = "386e7669bedf2fa7b117a2e15448e4163b278208"
