@@ -2,7 +2,7 @@
 
 Your application keeps settings in three places: your machine, each server instance, and the app’s settings pages.
 
-For example, you might run `sbg-bilibi` on your laptop and install the same release on Staging and Production. Each copy keeps its own address, database and business settings.
+For example, you might run `my-bilibi` on your laptop and install the same release on Staging and Production. Each copy keeps its own address, database and business settings.
 
 | Place | What belongs there | Where you change it |
 | --- | --- | --- |
@@ -28,18 +28,26 @@ Restart `./bilibi start` after saving. Your local address is now `https://my-sbg
 
 **Keep `.env.example` in Git; keep your own `.env` out of Git.** The example lists the supported settings without secrets. Your `.env` belongs next to `./bilibi`, even when the Platform sources are stored elsewhere.
 
-Without an override, your address is your application folder’s name under `.localhost`. For example, a clone in `acme-erp/` uses `https://acme-erp.localhost`. Names become lowercase, and spaces or other punctuation become hyphens. Each checkout also gets its own private database and database port. Copies can run beside one another.
+Your copy opens at `https://bilibi.localhost` by default. Each checkout gets its own private database and database port.
+
+**If you run more than one Bilibi on this computer, give each its own name.** Put `BILIBI_DEV_HOST=<name>.localhost` in `.env` at the application root, then restart the launcher.
+
+If another checkout owns your chosen address, the launcher stops. Its error names the address, the checkout folder using it, and your `.env` path. It suggests a free name with the exact line to add:
+
+```dotenv
+BILIBI_DEV_HOST=<suggested-free-name>.localhost
+```
+
+Copy the suggested line into your application’s `.env`, then run `./bilibi start` again. If HTTPS itself is unavailable, the launcher can still print a loopback HTTP address to open.
 
 > [!NOTE]
-> Folder-based defaults are being updated separately in the Platform. With the saved Platform version, set `BILIBI_DEV_HOST` explicitly to choose your address.
-
-If two checkouts have the same folder name, choose a different `BILIBI_DEV_HOST` for one. When another checkout owns the address, the launcher prints its own loopback HTTP address instead. Open the address it prints.
+> The Platform’s common default and address-conflict error are being updated separately. With the saved Platform version, set `BILIBI_DEV_HOST` explicitly before starting another copy.
 
 The launcher reads only these lines from `.env`:
 
 | Line | What it changes | Default |
 | --- | --- | --- |
-| `BILIBI_DEV_HOST=my-sbg.localhost` | This copy’s HTTPS address; use a name under `.localhost` | Your application folder’s name |
+| `BILIBI_DEV_HOST=my-sbg.localhost` | This copy’s HTTPS address; use a name under `.localhost` | `bilibi.localhost` |
 | `BILIBI_DEV_PORT=4300` | The port Bilibi listens on behind Caddy, the local HTTPS server | The first free port from 4300 |
 | `BILIBI_OPEN_BROWSER=0` | Whether the launcher opens the sign-in page: `1` opens it, `0` leaves it closed | `1` |
 

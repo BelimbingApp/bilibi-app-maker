@@ -15,7 +15,7 @@ cd my-bilibi
 ./bilibi start
 ```
 
-Your local address is intended to follow your folder’s name: `my-bilibi/` uses `https://my-bilibi.localhost`. To choose another address, set `BILIBI_DEV_HOST=<name>.localhost` in `.env` beside `./bilibi`; see [Settings](docs/guides/settings.md). The saved Platform version needs this explicit setting until its folder-name update is available.
+Your copy opens at `https://bilibi.localhost`. If you run more than one Bilibi on this computer, give each its own name with `BILIBI_DEV_HOST=<name>.localhost` in `.env` beside `./bilibi`; see [Settings](docs/guides/settings.md). Set this explicitly with the saved Platform version while its common default is being updated.
 
 The first start installs what is missing, such as Rust, PostgreSQL and Node, and builds Bilibi, so it takes a while. Then Bilibi opens in your browser at the sign-in page. Sign in as `ai@agent.my` / `bilibi-dev`. You now have the Platform on its own: sign-in, companies, people, users, permissions and audit.
 
