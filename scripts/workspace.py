@@ -276,6 +276,7 @@ def start():
         backup = PLATFORM / '.local' / ('composition-before-development-' + uuid.uuid4().hex)
         pin.rename(backup)
     os.chdir(PLATFORM)
+    os.environ.setdefault('BILIBI_APPLICATION_ROOT', str(ROOT))
     os.execvp('bash', ['bash', '-c', 'if [[ -f $HOME/.cargo/env ]]; then source "$HOME/.cargo/env"; fi; exec bash scripts/start-app.sh'])
 
 
@@ -469,7 +470,7 @@ def main():
               '  check         Build and test the saved versions against an empty test\n'
               '                database. Needs Docker.\n'
               '  build         Build the release program from the saved versions. Needs Docker.\n'
-              '                README.md, Release your setup, explains how to publish a release.\n\n'
+              '                docs/guides/releasing.md explains how to publish a release.\n\n'
               'Less often\n'
               '  setup         Install the tools and fetch the sources, without starting.\n'
               '  help          Show this list.')

@@ -39,12 +39,12 @@ def install(root, command):
     hooks = hooks.resolve()
     # A configured shared hook directory cannot safely receive this checkout's guard.
     if not (hooks.is_relative_to(root) or hooks.is_relative_to(gitdir)):
-        raise ValueError(f'{root}: core.hooksPath points outside this repository ({hooks}). Keep the shared hooks untouched; configure a repository-local hooks directory with your existing hooks copied there, then rerun ./bilibi setup. See README.md, Commit safeguards.')
+        raise ValueError(f'{root}: core.hooksPath points outside this repository ({hooks}). Keep the shared hooks untouched; configure a repository-local hooks directory with your existing hooks copied there, then rerun ./bilibi setup. See docs/guides/running.md#commit-safeguards.')
     hooks.mkdir(parents=True, exist_ok=True)
     hook = hooks / 'pre-commit'
     previous = hooks / 'pre-commit.before-bilibi'
     if hook.is_symlink():
-        raise ValueError(f'{hook}: symlink hook left unchanged; integrate the Bilibi guard in a repository-local hook (README.md)')
+        raise ValueError(f'{hook}: symlink hook left unchanged; integrate the Bilibi guard in a repository-local hook (docs/guides/running.md#commit-safeguards)')
     text = ('#!/usr/bin/env bash\n' + MARKER + '\nset -euo pipefail\n'
             + 'root=$(git rev-parse --show-toplevel)\n'
             + 'cd -- "$root"\n'
@@ -62,7 +62,7 @@ def install(root, command):
             tracked = subprocess.run(['git', '-C', str(root), 'ls-files', '--error-unmatch', str(hook.relative_to(root))],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if tracked.returncode == 0:
-                raise ValueError(f'{hook}: tracked hook left unchanged. Use an untracked repository-local hooks directory and copy your custom hook there before ./bilibi setup (README.md).')
+                raise ValueError(f'{hook}: tracked hook left unchanged. Use an untracked repository-local hooks directory and copy your custom hook there before ./bilibi setup (docs/guides/running.md#commit-safeguards).')
         legacy = legacy_guard(current, command)
         if not legacy and 'Bilibi repository guard' in current:
             raise ValueError(f'{hook}: installed guard has local edits; left unchanged. Reconcile them with pre-commit.before-bilibi before rerunning ./bilibi setup.')

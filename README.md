@@ -3,7 +3,7 @@
 Start here to make your own product on Bilibi. Clone this repository, run one command, and Bilibi opens in your browser. When it works for you, you make the copy your own and release it to your servers.
 
 > [!NOTE]
-> In your application, replace everything above **Run an existing application** with your own introduction. The sections from there onward describe your application as they are.
+> In your application, replace this introduction and **Start here** with your own introduction. The linked guides describe your application as they are.
 
 ## Start here
 
@@ -14,6 +14,8 @@ git clone https://github.com/BelimbingApp/bilibi-app-maker my-bilibi
 cd my-bilibi
 ./bilibi start
 ```
+
+Your copy opens at `https://bilibi.localhost`. If you run more than one Bilibi on this computer, give each its own name with `BILIBI_DEV_HOST=<name>.localhost` in `.env` beside `./bilibi`; see [Settings](docs/guides/settings.md).
 
 The first start installs what is missing, such as Rust, PostgreSQL and Node, and builds Bilibi, so it takes a while. Then Bilibi opens in your browser at the sign-in page. Sign in as `ai@agent.my` / `bilibi-dev`. You now have the Platform on its own: sign-in, companies, people, users, permissions and audit.
 
@@ -35,7 +37,7 @@ gh repo set-default your-company/my-bilibi
 git push -u origin main
 ```
 
-Your folder now has two remotes. `origin` is your application, where you push. `upstream` is the maker, so you can take its later improvements: see [Take maker updates](#take-maker-updates).
+Your folder now has two remotes. `origin` is your application, where you push. `upstream` is the maker, so you can take its later improvements: see [Take maker updates](docs/guides/maker-updates.md#take-maker-updates).
 
 > [!WARNING]
 > Clone the maker as shown. A copy made any other way, such as a downloaded ZIP file, has none of the maker's history, and maker updates can then no longer merge.
@@ -49,287 +51,14 @@ git commit -m "Add Finance"
 git push
 ```
 
-To install it on a server, follow [Release your setup](#release-your-setup) and [Install a release](#install-a-release).
-
-### Where do my changes go?
-
-| You changed… | Commit it in | Send it to |
-| --- | --- | --- |
-| Your application: its recipe, automation or docs | This folder | `origin`, your repository |
-| Bilibi itself | `sources/platform/` | A pull request to [`BelimbingApp/bilibi`](https://github.com/BelimbingApp/bilibi), pushed from your fork |
-| A Domain or Extension | Its folder under `sources/platform/apps/` | That component's own repository |
-
-In `sources/`, leave each folder's `origin` as it is: `./bilibi` checks it against `setup.toml`. To send a pull request to a repository you can't push to, add your fork as another remote, such as `fork`, and push there.
-
-## Which repository?
-
-Bilibi has three kinds of repository:
-
-| Repository | What it holds | Start there to |
-| --- | --- | --- |
-| `bilibi-app-maker` (this one) | Where every application starts: its starting files and the `./bilibi` commands | Make your own product |
-| [`bilibi`](https://github.com/BelimbingApp/bilibi) | Bilibi's source code: the Platform | Change Bilibi itself, or build a Domain or Extension for everyone |
-| Your application, such as `your-company/my-bilibi` | One product: the Bilibi, Domain and Extension versions it uses, and its releases | Work on your product, once you have made it |
-
-You clone the maker, and your clone becomes your application. It keeps the maker's working parts as they are, such as the `./bilibi` commands, the checks and the release scripts. You replace its sample parts with your own, such as the `YOUR-ORGANISATION` names in this README. When the maker improves, you merge its changes into your application: see [Take maker updates](#take-maker-updates).
-
-If you started in `bilibi` instead, `./bilibi new <name>` there turns what you built into an application like this one.
-
-## What the maker will do
-
-Today the maker gives you a running Bilibi and the commands to build, check and release it. Some steps are still manual, such as making the clone your own or connecting private Domains. The maker will take these over, one command each:
-
-| Step | Today | Planned |
-| --- | --- | --- |
-| Choose business features | `./bilibi add <name>`, if you know the name | Pick from a list ([#11](https://github.com/BelimbingApp/bilibi-app-maker/issues/11)) |
-| Make it yours | Four Git commands, in [Start here](#start-here) | `./bilibi own <owner/name>` ([#12](https://github.com/BelimbingApp/bilibi-app-maker/issues/12)) |
-| Use private Domains | Set up a GitHub App by hand, in [Private sources](#private-sources) | One command ([#13](https://github.com/BelimbingApp/bilibi-app-maker/issues/13)) |
-| Release and install | Several steps, in [Release your setup](#release-your-setup) | `./bilibi release` ([#14](https://github.com/BelimbingApp/bilibi-app-maker/issues/14)) |
-| Stay current | Merge maker updates and move the Platform, separately | `./bilibi upgrade` ([#15](https://github.com/BelimbingApp/bilibi-app-maker/issues/15)) |
-
-## Run an existing application
-
-Clone your application's repository, then run:
-
-```sh
-./bilibi start
-```
-
-The same command works with or without an AI agent. It obtains missing sources, installs commit safeguards, prepares missing prerequisites, and starts the existing development launcher. Bilibi opens in your browser at the sign-in page when it is ready; sign in as `ai@agent.my` / `bilibi-dev`. If no browser opens, open the address the launcher prints. Set `BILIBI_OPEN_BROWSER=0` to stop it opening. Local HTTPS may need manual trust; the launcher keeps its loopback HTTP fallback.
-
-Use apt-based Ubuntu or Debian, including WSL2, with Git, Bash, Python 3.11 or newer, network access and installation privileges. Setup may ask for your sudo password. Ubuntu 22.04 and Debian 11 ship older Python; install Python 3.11 or newer as `python3`, or use Ubuntu 24.04 or Debian 12. Setup prepares Rust, Node, PostgreSQL 18 and cargo-watch through the Platform's existing scripts. Release commands also need Docker with a running daemon and the pinned builder described below.
-
-## Your workspace
-
-```text
-my-bilibi/                         # application Git repository
-├── bilibi                         # common command entry point
-├── setup.toml                     # URLs and exact component commits
-├── composition/
-│   ├── manifest.txt               # saved component identity
-│   └── Cargo.lock                 # saved application dependency lock
-├── scripts/
-├── sources/                       # ignored, valuable editable clones
-│   └── platform/                  # independent Platform Git repository
-│       └── apps/
-│           ├── domains/finance/   # independent Domain Git repository
-│           └── extensions/        # optional independent Extension clones
-├── build/                         # ignored outputs and caches
-└── .local/                        # ignored workspace state
-```
-
-| Change | Repository to commit in |
-| --- | --- |
-| Application versions, manifest, lock, automation and documentation | Application root |
-| Platform source and its unmounted generated composition | `sources/platform/` |
-| Domain or Extension source | That component's own Git root |
-| Build outputs, caches, keys, runtime data and local state | Never commit |
-
-**Keep `sources/`: these are working repositories, not disposable build output.** Domains and Extensions remain ordinary nested clones at their existing Platform mount paths. They are neither submodules nor source symlinks. Older Platform launchers use an ignored `sources/platform/target` output link pointing into `build/target`; setup refuses to replace an existing target path.
-
-`./bilibi status` shows every Git root, branch, local change and difference from the saved versions. Startup runs your local branches and edits. It does not update `setup.toml` or describe a stale saved pin as the running development version.
-
-The Platform keeps its existing runtime locations: `.local/dev` contains development keys, `.local/postgres18` contains the private development database, and existing media and configuration paths remain unchanged. Environment variables retain their existing meaning. Workspace `.local/` contains command coordination and temporary pin candidates; runtime data is not moved there.
-
-## Commands
-
-Run commands from the application's root folder. `./bilibi help` shows the same list. Your branches, staged files and uncommitted edits are always kept.
-
-| Command | What it does | When to use it |
-| --- | --- | --- |
-| `./bilibi start` | Installs anything missing, fetches the sources, runs the application, and opens it in your browser | Every time you want to run your application |
-| `./bilibi add <name>` | Adds a Domain or Extension, such as `finance`. You can also paste the `add` command that the Software page shows. | When you want a new business feature. Run `start` again afterwards. |
-| `./bilibi status` | Lists the Platform, Domains and Extensions, with their branches, your uncommitted changes, and any difference from the saved versions | When you want to see what you have changed |
-| `./bilibi update` | Gets your team's latest pushed changes, and switches every source to the versions saved in `setup.toml` | Before you start work, to match your team |
-| `./bilibi pin` | Saves the versions you are running into `setup.toml` and `composition/`. Commit and push your source changes first. Needs Docker. | After you add a Domain, or change a source, and it works |
-| `./bilibi check` | Builds and tests the saved versions against an empty test database. Needs Docker. | Before a release, or to check a pin |
-| `./bilibi build` | Builds the release program from the saved versions. Needs Docker. | When you make a release; see [Release your setup](#release-your-setup) |
-| `./bilibi setup` | Installs the tools and fetches the sources, without starting | When you want everything ready in advance |
-| `./bilibi help` | Shows the command list | Any time |
-
-`./bilibi new` belongs to the Platform repository. In an application repository, you already own the application recipe.
-
-Run `./bilibi update` to receive changes published to your application branch. It restores `sources/` to the commits saved in the updated `setup.toml` and restores the saved dependency lock. **Only `./bilibi pin` saves new component selections.** Update refuses real edits, staged files, untracked files and unpushed commits, and prints the affected path and next step. It can replace verified generated composition files. It never stashes your work or forces a checkout. An application branch needs a remote upstream; source commits must be published to their declared `origin`.
-
-Copy the install command from **Administration › System › Software** and run it from your application root:
-
-```sh
-./bilibi add finance --kind domains --source https://github.com/BelimbingApp/bilibi-dom-finance --commit <recommended-commit>
-```
-
-Give all three flags together. The commit must be a full lowercase 40-character ID. Finance mounts at `sources/platform/apps/domains/finance`; Extensions mount at `sources/platform/apps/extensions/<id>`. Without these flags, `add` uses the local Platform catalogue and the repository's default branch, as before.
-
-An existing checkout at the requested commit keeps its branch and edits. If it is at another commit, `add` refuses and prints the requested commit and fetch/checkout steps. Save your work before following those steps. A different origin, occupied path or mismatched component descriptor also causes a refusal. If a new clone lacks the requested commit, it stays available for inspection and the message explains how to retry. Run `./bilibi start` to try the component, then commit and push your component work before `./bilibi pin` saves the selection.
-
-Repeated setup does not fetch existing clones, so an unavailable remote cannot discard or block work already present. It never resets, cleans, switches or removes an existing checkout. A saved-version mismatch prints the path and next action. Strict checks and release builds instead require the saved commits and clean sources, except for recognised generated composition files.
-
-## Save selected versions
-
-Edit component source in its own repository, commit it and push it to its declared `origin`. Then run:
-
-```sh
-./bilibi pin
-git diff -- setup.toml composition/
-```
-
-Pin reads the current Platform, Domain and Extension commits and origins, including components mounted by `add`. It refuses uncommitted edits outside recognised generated composition. It reconstructs a candidate from the declared HTTPS remotes without reusing local Git objects, checks assets, resolves dependencies in the pinned builder and validates the resulting pin and lock. Only then does it replace `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock`. A failed candidate leaves the previous saved set intact. Review and commit all three together.
-
-Each source URL must use HTTPS without credentials and each commit must be a full lowercase 40-character ID. Domains and Extensions also need their declared `id`. Domains and Extensions are optional.
-
-Checks restore the saved lock; they never resolve a new dependency set. They verify remote availability and saved version tags independently of your local objects. A local-only commit is insufficient for a release.
-
-Run the combined gates with a **separate empty disposable PostgreSQL 18 database**:
-
-```sh
-export BILIBI_CHECK_DATABASE_URL=postgresql://YOUR-USER@127.0.0.1:5432/EMPTY-DISPOSABLE-DATABASE
-./bilibi check
-./bilibi build
-```
-
-`DATABASE_URL` remains your development connection and is never an implicit check target. Check refuses the same database or a database with existing tables or views. Check leaves its migrations and production seed in the disposable database; provide a new empty database on the next run. It seeds that database as a Dev copy, because its boot check uses HTTP on a loopback address, which the Platform allows only for Dev copies. Docker uses host networking to reach it. Set `SETUP_CI_PORT` if the default check port, 38971, is occupied.
-
-`BILIBI_SOURCE_DIR` overrides the source directory; `BILIBI_BUILD_DIR` still overrides outputs and caches. `CARGO_TARGET_DIR` overrides Cargo output. Use absolute paths outside editable sources for outputs. The builder maps all three consistently into its container. Pin candidates always use their own directories and ignore these overrides.
-
-## Commit safeguards
-
-Setup installs a repository-local Platform pre-commit hook that runs its own `scripts/discover-modules.py --check`. This rejects staged mounted composition and foreign path packages in the Platform lock. The application pre-commit hook validates the staged recipe, manifest and lock together; its application lock is allowed in Git. CI also validates the saved set because local hooks can be bypassed.
-
-An existing executable pre-commit hook is preserved as `pre-commit.before-bilibi` in the same hook directory and runs first. Its failure stops the commit. Installation is repeatable. The guard finds its repository when it runs, so renaming or moving a checkout does not break it; an unmodified guard from an earlier release is replaced in place, while your own edits to an installed guard are left unchanged with a recovery message. It does not change `core.hooksPath` or global Git configuration. Tracked or symlink hooks, and hook directories outside this repository, are refused so setup cannot rewrite source files or shared hooks. For a shared hook path, configure a local hook directory (for example `git config --local core.hooksPath .git/hooks` in an ordinary clone), copy the hooks you want to retain there, inspect their relative-path assumptions, then rerun `./bilibi setup`. For a symlink hook, copy its target into that local directory as an ordinary executable first.
-
-## Update an older application workspace
-
-Keep the old checkout and runtime data until a parallel workspace has been used successfully. First record the old paths, remotes, branches, commits, staged and unstaged changes, untracked files, configuration and active processes. Inspect keys and database locations without printing secrets.
-
-Create a separate application clone with the updated maker commands and your reviewed recipe and composition. Run setup there. Validate with a separate database and local data paths. Transfer or commit source edits deliberately in their owning repositories; setup does not migrate the old `build/platform` clone. Do not delete the old `build/`: older layouts keep valuable sources there.
-
-To adopt a clean existing clone manually, stop only that workspace's own processes by PID, verify the resolved source and destination paths, and move `build/platform` to an absent `sources/platform` on the same filesystem. Preserve its `.git`, nested component repositories, local files and runtime data together. Inspect an existing `target/` directory and deliberately move its outputs into `build/target` before setup creates its output link. Run status and setup, then validate with disposable data before changing editor or service paths. Roll back by restoring those recorded paths and the old application checkout; retain its database and keys.
-
-Maker updates are ordinary reviewed application changes; [Take maker updates](#take-maker-updates) shows how. After those changes reach your application's remote branch, `./bilibi update` pulls them into a clean workspace. It does not import changes directly from the maker repository.
-
-## Take maker updates
-
-Your application has two remotes:
-
-- **`origin`**: your application repository, where you push and open pull requests.
-- **`upstream`**: the maker, `https://github.com/BelimbingApp/bilibi-app-maker.git`, where the wrapper, scripts, checks and this README come from.
-
-The checkouts in `sources/` have only `origin`: the URL saved in `setup.toml`, which `./bilibi` checks and `./bilibi pin` saves. Never repoint it. To propose a change to a component you cannot push to, add your fork as another remote, for example `fork`, and push your branch there.
-
-Once per clone, add the maker and keep the GitHub CLI on your own repository:
-
-```sh
-git remote add upstream https://github.com/BelimbingApp/bilibi-app-maker.git
-gh repo set-default YOUR-ORGANISATION/YOUR-APPLICATION
-```
-
-Without the second line, the GitHub CLI sends `gh pr create` and other commands to the maker, because it prefers a remote named `upstream`.
-
-To take the maker's changes, merge them on a branch and open a pull request:
-
-```sh
-git switch -c maker-sync main
-git fetch upstream
-git merge upstream/main
-git push -u origin maker-sync
-gh pr create --fill
-```
-
-Git keeps your own changes and brings in only what the maker changed since the last merge. It stops on a conflict only where both sides changed the same lines; fix those, then `git commit`. Use `git merge`, not `git pull` or a rebase, which would rewrite your history onto the maker's. **Merge that pull request with a merge commit, not a squash**: a squash drops the link to the maker, and the next merge brings the same changes in again.
-
-**If your history is not linked to the maker yet**, `git merge upstream/main` refuses with "refusing to merge unrelated histories". First bring your files level with a maker commit by hand, keeping your own changes. Then record that commit as merged without changing any file, and merge that pull request with a merge commit too:
-
-```sh
-git merge --allow-unrelated-histories -s ours <maker-commit>
-```
-
-Only record a commit whose changes you have really taken: Git will never offer them again.
-
-## Release your setup
-
-**Build in development or GitHub Actions; servers install the finished release.** Before releasing, enable **release immutability** in your application repository's Settings. Protect `main` and the `setup-v*` tags so only release maintainers can change them, and allow GitHub Actions to run.
-
-After the checks pass, tag the reviewed recipe commit:
-
-```sh
-git tag setup-v1.0.0
-git push origin setup-v1.0.0
-```
-
-The setup version belongs to your repository. It is separate from the Platform and Domain versions. **Never move a published tag or replace a published asset.**
-
-**Release setup** repeats the combined gates, checks the compiled program's reported composition, packages it, and creates a draft release. Only the draft job has `contents: write`. It uploads every asset and compares each digest with GitHub's recorded SHA-256. A rerun refuses an existing release instead of replacing its files.
-
-Final publication also needs an authenticated GitHub CLI session and Node.js 20 or newer on your machine. Install the locked `gh-axi` helper:
-
-```sh
-npm ci --prefix scripts/github-tools --ignore-scripts --no-audit --no-fund
-export PATH="$PWD/scripts/github-tools/node_modules/.bin:$PATH"
-```
-
-The owner publishes the verified draft as a separate final action. This keeps an administration credential out of Actions: checking GitHub's immutability setting requires administration read permission. Use your own authenticated `gh-axi` session, with that permission and permission to publish releases. In a clean checkout of the tagged commit, download all draft assets into an empty `dist/` folder:
-
-```sh
-git checkout setup-v1.0.0
-gh-axi release download setup-v1.0.0 --repo YOUR-ORGANISATION/YOUR-SETUP --dir dist
-python3 scripts/publish.py publish --tag setup-v1.0.0 --repository YOUR-ORGANISATION/YOUR-SETUP
-```
-
-The script checks the tagged commit, local checksums, GitHub asset digests and repository immutability before publishing. It then requires GitHub to report an immutable release. A `setup-vX.Y.Z-test` tag runs the same build but must stay a draft; delete the draft and tag after testing.
-
-## Install a release
-
-Set the Software page's **GitHub repository** setting to your own application repository, for example `your-company/my-bilibi`. The server reads its releases from that repository.
-
-Download the `bilibi-setup-v1.0.0-x86_64-unknown-linux-gnu.tar.gz` asset from your own repository. Download `SHA256SUMS` too and verify the archive against GitHub's recorded asset digest or [release verification](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/verify-release-integrity).
-
-On the target Bilibi instance, open **Software → Releases**, upload that archive, review it, and confirm the install with a fresh 2FA code. Keep the same downloaded archive for Staging and Production. The existing installer handles backup, migration, switching, health checks, recovery and Undo.
-
-GitHub's automatic **Source code** archives are not installable releases. The separate `bilibi-installer-x86_64-unknown-linux-gnu` and `bilibi-server-tools.tar.gz` assets are for initial server setup or deliberate administrator upgrades. Ordinary application installs do not update the shared installer.
-
-An uploaded file remains operator supplied. Its checksum detects damaged bytes; **a checksum is not a signature or independent proof of who built it**. Use your configured repository over HTTPS, verify GitHub's digest, and test the exact archive on Staging before Production.
-
-## Private sources
-
-If a source is private, CI needs read access to it: the setup repository's normal token may not read another private repository. Use a GitHub App (preferred) or a `SOURCE_READ_TOKEN` secret.
-
-**GitHub App (preferred).** Each check run mints its own token, limited to reading the repositories the App is installed on. It expires within the hour and is revoked when the job ends, so no long-lived token is stored.
-
-1. Create a GitHub App owned by the account that owns the sources: no webhook, repository permission **Contents: Read-only**, installable only on that account.
-2. Install it on the private source repositories only.
-3. In this repository's Actions settings, set the variable `SOURCE_APP_CLIENT_ID` to the App's client ID and the secret `SOURCE_APP_PRIVATE_KEY` to a private key generated for the App.
-
-When `SOURCE_APP_CLIENT_ID` is set, the check uses the App; otherwise it falls back to the `SOURCE_READ_TOKEN` secret.
-
-**`SOURCE_READ_TOKEN`.** A fine-grained token with read access to only the required source repositories, stored as an Actions secret.
-
-**Pull requests.** By default pull requests receive no source token, so with a private source in the recipe their checks fail at "Materialize exact sources", and the check on `main` after the merge is the one that counts. To check pull requests fully, set the repository variable `SOURCE_READ_ON_PULL_REQUESTS` to `true`: pull requests from the repository's own branches then receive the token. Pull requests from forks never do. **Turn it on only if everyone who can push a branch here may read every private source**, because a pull request's code can print the token.
-
-The materialization and remote-verification step passes the token through a password helper restricted to `https://github.com`. Unexpected hosts and prompts are refused. Sources on other hosts use your own host-specific credential helper. It saves no Git credentials and caches only Cargo downloads and build outputs. Never put a token in `setup.toml`, a Git URL, the lock, a cache or a release asset.
-
-For local private-source access, use your own Git credential helper or `GIT_ASKPASS`. No server credentials belong in Actions.
-
-## What the release contains
-
-| Asset | Purpose |
-| --- | --- |
-| `bilibi-setup-v<version>-x86_64-unknown-linux-gnu.tar.gz` | The existing upload format: root-level `bilibi-web`, `manifest.txt`, `Cargo.lock`, `release.json`, `bundle.json` and `SHA256SUMS`. |
-| `bilibi-installer-x86_64-unknown-linux-gnu` | The matching installer, outside the app archive. |
-| `bilibi-server-tools.tar.gz` | The matching server installation script, libraries, service templates and waiting page. |
-| `recipe.json` | Setup repository, tag and commit; every source URL and commit; Platform, Domains, Extensions, toolchain, builder, target and dynamic dependencies. |
-| `builder-packages.txt` | The builder's installed Debian package versions. |
-| `publication.json` | The build run link and actual compiler and Node versions. |
-| `SHA256SUMS` | SHA-256 for every other release asset. The app archive has a separate checksum list for its payload. |
-
-`release.json` includes both `reference` and `commit` for containers because the existing upload preview and installer result use those different names. Extension identities are recorded and checked against the program; the current Platform upload preview does not display Extensions.
-
-## Build requirements
-
-Only Linux x86-64 (`x86_64-unknown-linux-gnu`) is supported by this maker today. `rust-toolchain.toml` pins Rust 1.99.0. `builder.toml` pins the Rust and Node image digests, Node 24.6.0, PostgreSQL 18.0, the Debian package snapshot and the runner label. The Dockerfile uses that dated snapshot for Python and records installed packages.
-
-The Debian 12 builder records its glibc version and the binary's dynamic dependencies in the recipe. This is a build baseline, not a claim that every Debian or Ubuntu release has been tested. Check the actual target server's libraries before promotion. Distributed programs do not use `target-cpu=native`.
-
-Archives have sorted entries, fixed modes, zero ownership, recipe-commit timestamps and no gzip timestamp. The workflow repackages the same program and compares every asset digest. This proves deterministic packaging. **The program is built from the recorded recipe; two clean compiler builds have not yet proved identical output bytes.** The workflow records the checked run time; compare a cold run with a later run that restores the cache. Cache keys include the source map, composition, toolchain and builder; cache hits still run every check.
-
-## Where to go next
-
-Read the Platform's [server installation guide](https://github.com/BelimbingApp/bilibi/blob/main/docs/server-install.md) for a fresh server and [Software guide](https://github.com/BelimbingApp/bilibi/blob/main/apps/base/software/README.md) for install and Undo. GitHub documents [immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases) and the [asset digest API](https://docs.github.com/en/rest/releases/assets).
+To install it on a server, follow [Release your setup](docs/guides/releasing.md#release-your-setup) and [Install a release](docs/guides/installing.md#install-a-release).
+
+## Guides
+
+- [Settings](docs/guides/settings.md): local addresses, databases and settings for each instance.
+- [Running your application](docs/guides/running.md): requirements, workspace, commands and commit safeguards.
+- [Releasing your application](docs/guides/releasing.md): save versions, check, build and publish a release.
+- [Installing a release](docs/guides/installing.md): put a tested release on Staging and Production.
+- [Private sources](docs/guides/private-sources.md): give checks access to private repositories.
+- [Taking maker updates](docs/guides/maker-updates.md): merge maker improvements and update older workspaces.
+- [Application repositories](docs/guides/about.md): where changes belong and what the maker provides.
