@@ -40,9 +40,6 @@ BILIBI_DEV_HOST=<suggested-free-name>.localhost
 
 Copy the suggested line into your application’s `.env`, then run `./bilibi start` again. If HTTPS itself is unavailable, the launcher can still print a loopback HTTP address to open.
 
-> [!NOTE]
-> The Platform’s common default and address-conflict error are being updated separately. With the saved Platform version, set `BILIBI_DEV_HOST` explicitly before starting another copy.
-
 The launcher reads only these lines from `.env`:
 
 | Line | What it changes | Default |
