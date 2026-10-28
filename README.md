@@ -1,6 +1,10 @@
 # Bilibi app maker
 
-Start here to make your own product on Bilibi. Clone this repository, run one command, and Bilibi opens in your browser. When it works for you, you make the copy your own and release it to your servers.
+The Bilibi app maker is the starting copy for your own application built on Bilibi. For example, a company can combine the Bilibi Platform, Finance and its own private Extension in one application. The application records the exact versions of these parts, so the company can release it to its servers and take Bilibi updates later.
+
+## When to use it
+
+To develop Bilibi itself, use the [Platform repository](https://github.com/BelimbingApp/bilibi). To run your own Bilibi on your servers, use this app maker.
 
 > [!NOTE]
 > In your application, replace this introduction and **Start here** with your own introduction. The linked guides describe your application as they are.
