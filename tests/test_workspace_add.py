@@ -179,10 +179,10 @@ class AddTest(unittest.TestCase):
             self.add('--kind', 'domains', '--source', source, '--commit', self.first)
             self.assertEqual(self.git(self.folder, 'config', '--get', 'remote.origin.url'), source + '.git')
             (self.platform / '.git/info/exclude').write_text('/apps/domains/\n')
-            pinned = self.app / 'pinned'
-            pinned.mkdir()
-            (pinned / 'setup.toml').write_text(workspace.serialize(workspace.selected_recipe()))
-            _, sources = self.original_recipe(pinned)
+            recorded = self.app / 'recorded'
+            recorded.mkdir()
+            (recorded / 'setup.toml').write_text(workspace.serialize(workspace.selected_recipe()))
+            _, sources = self.original_recipe(recorded)
         self.assertIn(('apps/domains/finance', {'id': 'finance', 'url': source + '.git', 'commit': self.first}), sources)
 
 

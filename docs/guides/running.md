@@ -42,9 +42,9 @@ my-bilibi/                         # application Git repository
 
 **Keep `sources/`: these are working repositories, not disposable build output.** Domains and Extensions remain ordinary nested clones at their existing Platform mount paths. They are neither submodules nor source symlinks. Older Platform launchers use an ignored `sources/platform/target` output link pointing into `build/target`; setup refuses to replace an existing target path.
 
-`./bilibi status` shows every Git root, branch, local change and difference from the saved versions. Startup runs your local branches and edits. It does not update `setup.toml` or describe a stale saved pin as the running development version.
+`./bilibi status` shows every Git root, branch, local change and difference from the saved versions. Start and status show one line when parts have new commits since the last build. Startup runs your local branches and edits. It does not update `setup.toml` or describe an older build record as the running development version.
 
-The Platform keeps its existing runtime locations: `.local/dev` contains development keys, `.local/postgres18` contains the private development database, and existing media and configuration paths remain unchanged. Environment variables retain their existing meaning. Workspace `.local/` contains command coordination and temporary pin candidates; runtime data is not moved there.
+The Platform keeps its existing runtime locations: `.local/dev` contains development keys, `.local/postgres18` contains the private development database, and existing media and configuration paths remain unchanged. Environment variables retain their existing meaning. Workspace `.local/` contains command coordination and temporary build checkouts and record candidates; runtime data is not moved there.
 
 ## Commands
 
@@ -56,15 +56,15 @@ Run commands from the application's root folder. `./bilibi help` shows the same 
 | `./bilibi add <name>` | Adds a Domain or Extension, such as `finance`. You can also paste the `add` command that the Software page shows. | When you want a new business feature. Run `start` again afterwards. |
 | `./bilibi status` | Lists the Platform, Domains and Extensions, with their branches, your uncommitted changes, and any difference from the saved versions | When you want to see what you have changed |
 | `./bilibi update` | Gets your team's latest pushed changes, and switches every source to the versions saved in `setup.toml` | Before you start work, to match your team |
-| `./bilibi pin` | Saves the versions you are running into `setup.toml` and `composition/`. Commit and push your source changes first. Needs Docker. | After you add a Domain, or change a source, and it works |
-| `./bilibi check` | Builds and tests the saved versions against an empty test database. Needs Docker. | Before a release, or to check a pin |
-| `./bilibi build` | Builds the release program from the saved versions. Needs Docker. | When you make a release; see [Release your setup](releasing.md#release-your-setup) |
+| `./bilibi check` | Asks about new commits, saves your choices, then builds and tests against an empty test database. Needs Docker. | Before a release |
+| `./bilibi build` | Asks about new commits, saves your choices, then builds the release program. Needs Docker. | When you make a release; see [Release your setup](releasing.md#release-your-setup) |
+| `./bilibi release --tag setup-vX.Y.Z` | Commits the build record and starts the GitHub release workflow. Refuses other uncommitted application files. | After build and check pass |
 | `./bilibi setup` | Installs the tools and fetches the sources, without starting | When you want everything ready in advance |
 | `./bilibi help` | Shows the command list | Any time |
 
 `./bilibi new` belongs to the Platform repository. In an application repository, you already own the application recipe.
 
-Run `./bilibi update` to receive changes published to your application branch. It restores `sources/` to the commits saved in the updated `setup.toml` and restores the saved dependency lock. **Only `./bilibi pin` saves new component selections.** Update refuses real edits, staged files, untracked files and unpushed commits, and prints the affected path and next step. It can replace verified generated composition files. It never stashes your work or forces a checkout. An application branch needs a remote upstream; source commits must be published to their declared `origin`.
+Run `./bilibi update` to receive changes published to your application branch. It restores `sources/` to the commits saved in the updated `setup.toml` and restores the saved dependency lock. **Build and check ask before saving new versions.** Update refuses real edits, staged files, untracked files and unpushed commits, and prints the affected path and next step. It can replace verified generated composition files. It never stashes your work or forces a checkout. An application branch needs a remote upstream; source commits must be published to their declared `origin`.
 
 Copy the install command from **Administration › System › Software** and run it from your application root:
 
@@ -74,9 +74,9 @@ Copy the install command from **Administration › System › Software** and run
 
 Give all three flags together. The commit must be a full lowercase 40-character ID. Finance mounts at `sources/platform/apps/domains/finance`; Extensions mount at `sources/platform/apps/extensions/<id>`. Without these flags, `add` uses the local Platform catalogue and the repository's default branch, as before.
 
-An existing checkout at the requested commit keeps its branch and edits. If it is at another commit, `add` refuses and prints the requested commit and fetch/checkout steps. Save your work before following those steps. A different origin, occupied path or mismatched component descriptor also causes a refusal. If a new clone lacks the requested commit, it stays available for inspection and the message explains how to retry. Run `./bilibi start` to try the component, then commit and push your component work before `./bilibi pin` saves the selection.
+An existing checkout at the requested commit keeps its branch and edits. If it is at another commit, `add` refuses and prints the requested commit and fetch/checkout steps. Save your work before following those steps. A different origin, occupied path or mismatched component descriptor also causes a refusal. If a new clone lacks the requested commit, it stays available for inspection and the message explains how to retry. Run `./bilibi start` to try the component, then commit and push your component work before `./bilibi build` saves your choice.
 
-Repeated setup does not fetch existing clones, so an unavailable remote cannot discard or block work already present. It never resets, cleans, switches or removes an existing checkout. A saved-version mismatch prints the path and next action. Strict checks and release builds instead require the saved commits and clean sources, except for recognised generated composition files.
+Repeated setup does not fetch existing clones, so an unavailable remote cannot discard or block work already present. It never resets, cleans, switches or removes an existing checkout. A saved-version mismatch prints the path and next action. Build and check stop for uncommitted edits, except for verified generated composition files. They build saved commits in separate checkouts. GitHub uses only the committed build record.
 
 ## Commit safeguards
 

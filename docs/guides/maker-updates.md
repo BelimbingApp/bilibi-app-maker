@@ -9,7 +9,7 @@ Your application has two remotes:
 - **`origin`**: your application repository, where you push and open pull requests.
 - **`upstream`**: the maker, `https://github.com/BelimbingApp/bilibi-app-maker.git`, where the wrapper, scripts, checks and these guides come from.
 
-The checkouts in `sources/` have only `origin`: the URL saved in `setup.toml`, which `./bilibi` checks and `./bilibi pin` saves. Never repoint it. To propose a change to a component you cannot push to, add your fork as another remote, for example `fork`, and push your branch there.
+The checkouts in `sources/` have only `origin`: the URL saved in `setup.toml`, which build and check verify before saving versions. Never repoint it. To propose a change to a component you cannot push to, add your fork as another remote, for example `fork`, and push your branch there.
 
 Once per clone, add the maker and keep the GitHub CLI on your own repository:
 

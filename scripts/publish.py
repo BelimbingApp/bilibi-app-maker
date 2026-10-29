@@ -70,6 +70,34 @@ def verify_assets(release, expected):
             raise ValueError(f'GitHub asset digest mismatch: {asset["name"]}')
 
 
+def validate_tag(tag):
+    if not re.fullmatch(r'setup-v\d+\.\d+\.\d+(?:-test)?', tag):
+        raise ValueError('Use setup-vX.Y.Z or setup-vX.Y.Z-test for the release tag.')
+
+
+def check_new_tag(tag, root):
+    validate_tag(tag)
+    ref = f'refs/tags/{tag}'
+    if subprocess.run(['git', 'show-ref', '--verify', '--quiet', ref], cwd=root).returncode == 0:
+        raise ValueError(f'{tag} already exists here. Choose a new release version.')
+    result = subprocess.run(['git', 'ls-remote', '--exit-code', 'origin', ref], cwd=root,
+                            text=True, stdout=subprocess.PIPE, check=False)
+    if result.returncode == 0:
+        raise ValueError(f'{tag} already exists on origin. Choose a new release version.')
+    if result.returncode != 2:
+        raise ValueError('Cannot check release tags on origin. Check your connection and Git access, then retry.')
+
+
+def start_release(tag, root):
+    subprocess.run(['git', 'tag', tag], cwd=root, check=True)
+    if subprocess.run(['git', 'push', 'origin', f'refs/tags/{tag}'], cwd=root).returncode != 0:
+        subprocess.run(['git', 'tag', '-d', tag], cwd=root, check=True)
+        raise ValueError(f'{tag} was not published to origin. Check your connection and Git access, '
+                         'then run the release command again.')
+    print(f'Started the GitHub release build for {tag}. Follow Release setup in GitHub Actions. '
+          'Publish the verified draft using docs/guides/releasing.md.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('draft', 'publish'))
@@ -78,8 +106,7 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', args.repository):
         parser.error('Use owner/name for the repository')
-    if not re.fullmatch(r'setup-v\d+\.\d+\.\d+(?:-test)?', args.tag):
-        parser.error('Use setup-vX.Y.Z or setup-vX.Y.Z-test')
+    validate_tag(args.tag)
     expected = verify_files(ROOT / 'dist')
     record = json.loads((ROOT / 'dist/recipe.json').read_text())
     setup = record['setup']

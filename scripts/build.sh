@@ -12,4 +12,4 @@ npm ci --prefix apps/base/ui/assets --no-audit --no-fund
 cargo build --workspace --release --target "$target" --locked
 python3 "$root/scripts/recipe.py" verify
 python3 "$root/scripts/recipe.py" status --binary "$CARGO_TARGET_DIR/$target/release/bilibi-web"
-echo "Built saved release programs in $CARGO_TARGET_DIR/$target/release. Follow docs/guides/releasing.md to tag and package a release."
+echo "Built saved release programs in $CARGO_TARGET_DIR/$target/release. Run ./bilibi release --tag setup-vX.Y.Z to release them."

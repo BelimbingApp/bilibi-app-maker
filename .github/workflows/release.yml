@@ -8,6 +8,7 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  # The tag contains the complete build record. Never choose newer source commits here.
   build:
     uses: ./.github/workflows/check.yml
     with:

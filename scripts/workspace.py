@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Application workspace commands; component repositories own their local work."""
 import argparse
+import copy
 import fcntl
 import importlib.util
 import json
@@ -16,8 +17,10 @@ import tomllib
 import uuid
 
 import recipe
+import publish
 
 ROOT, PLATFORM, BUILD = recipe.ROOT, recipe.PLATFORM, recipe.BUILD
+RECORD_FILES = ('setup.toml', 'composition/manifest.txt', 'composition/Cargo.lock')
 OFFICIAL = re.compile(r'https://github\.com/BelimbingApp/[A-Za-z0-9][A-Za-z0-9_.-]*(?:\.git)?')
 
 
@@ -34,6 +37,31 @@ def repositories():
                 for folder in sorted(parent.iterdir()):
                     if folder.is_dir() and folder.name != 'src' and not folder.name.startswith('.'):
                         yield f'apps/{layer}/{folder.name}', folder
+
+
+def part_name(name):
+    return 'Platform' if name == 'platform' else name.rsplit('/', 1)[-1]
+
+
+def entries(setup):
+    return {'platform': setup['platform'], **{
+        f'apps/{layer}/{source["id"]}': source
+        for layer in ('domains', 'extensions') for source in setup.get(layer, [])}}
+
+
+def moved_notice():
+    _, saved = recipe.recipe()
+    saved = dict(saved)
+    moved = []
+    for name, folder in repositories():
+        if folder.exists():
+            recipe.checkout(folder)
+            head = run('git', 'rev-parse', 'HEAD', cwd=folder, capture=True).strip()
+            if name not in saved or head != saved[name]['commit']:
+                moved.append(part_name(name))
+    if moved:
+        verb = 'has' if len(moved) == 1 else 'have'
+        print(f'{", ".join(moved)} {verb} new commits since the last build. Run ./bilibi build to choose versions.')
 
 
 def status():
@@ -55,11 +83,12 @@ def status():
         origin = run('git', 'remote', 'get-url', 'origin', cwd=folder, capture=True).strip()
         entry = saved.get(name)
         if entry is None:
-            print('Not saved in setup.toml; commit and push, then run ./bilibi pin.')
+            print('Not in the saved build record. Run ./bilibi build to include it.')
         elif head != entry['commit'] or origin != entry['url']:
-            print(f'Saved: {entry["commit"]} from {entry["url"]}. Commit and push local changes, then ./bilibi pin to save them.')
+            print(f'Saved: {entry["commit"]} from {entry["url"]}. Run ./bilibi build to choose versions.')
         else:
             print('Matches saved source revision (working changes shown above).')
+    moved_notice()
     for name in saved.keys() - found:
         print(f'\n{name}: {PLATFORM / name} — missing; run ./bilibi setup.')
 
@@ -136,7 +165,7 @@ def update_clean(folder, generated=None):
     return allowed
 
 
-def generated_output():
+def generated_output(command="update"):
     if not PLATFORM.exists():
         return {}
     discovery = recipe.discovery_module()
@@ -147,8 +176,8 @@ def generated_output():
         raise ValueError(f'{PLATFORM}: cannot verify generated composition ({error}); run '
                          f'{git_step(PLATFORM, "status", "--short")} and python3 '
                          f'{shlex.quote(str(PLATFORM / "scripts/discover-modules.py"))} --check; '
-                         'resolve the reported source mismatch, then rerun ./bilibi update') from error
-    # Accept the saved application lock or an intact previously restored pin.
+                         f'resolve the reported source mismatch, then rerun ./bilibi {command}') from error
+    # Accept the saved application lock or an intact previously restored build record.
     lock = PLATFORM / 'Cargo.lock'
     for saved in (ROOT / 'composition', PLATFORM / '.local/composition'):
         try:
@@ -198,7 +227,7 @@ def update():
                 data = subprocess.check_output(['git', 'show', f'{target}:{name}'], cwd=ROOT)
                 (candidate / name).write_bytes(data)
             _, sources = recipe.recipe(candidate)
-            recipe.check_pin(candidate)
+            recipe.check_record(candidate)
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         raise ValueError(f'{ROOT}/setup.toml and composition/: incoming saved composition is invalid ({error}); '
                          f'inspect with {git_step(ROOT, "show", target + ":setup.toml")}, '
@@ -228,7 +257,7 @@ def update():
         allowed = update_clean(folder, generated if name == 'platform' else None)
         if name not in saved:
             raise ValueError(f'{folder}: not in the incoming setup.toml; move this clone outside sources/ yourself, '
-                             'or save it with ./bilibi pin and publish the application recipe before retrying')
+                             'or run ./bilibi build and release the application record before retrying')
         source = saved[name]
         origin = subprocess.run(['git', 'remote', 'get-url', 'origin'], cwd=folder,
                                 text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False).stdout.strip()
@@ -262,19 +291,19 @@ def update():
             run('git', '-c', 'core.hooksPath=/dev/null', 'checkout', '--detach', source['commit'], cwd=folder)
     recipe.materialize()
     recipe.restore()
-    print('Updated application and restored saved source commits and composition. Use ./bilibi pin to save new selections.')
+    print('Updated application and restored saved source commits and composition. Run ./bilibi build to choose new versions.')
 
 
 def start():
     setup()
     status()
-    print('\nStarting local sources with the development seed. Saved release pins are not the identity of this development run.', flush=True)
-    # A development run must not compile a stale release pin as its identity.
-    # Keep the old machine-local pin for inspection rather than deleting it.
-    pin = PLATFORM / '.local/composition'
-    if (pin / 'manifest.txt').exists():
+    print('\nStarting local sources with the development seed. The next build will ask about new commits.', flush=True)
+    # A development run must not compile a stale release record as its identity.
+    # Keep the old machine-local record for inspection rather than deleting it.
+    record = PLATFORM / '.local/composition'
+    if (record / 'manifest.txt').exists():
         backup = PLATFORM / '.local' / ('composition-before-development-' + uuid.uuid4().hex)
-        pin.rename(backup)
+        record.rename(backup)
     os.chdir(PLATFORM)
     os.environ.setdefault('BILIBI_APPLICATION_ROOT', str(ROOT))
     os.execvp('bash', ['bash', '-c', 'if [[ -f $HOME/.cargo/env ]]; then source "$HOME/.cargo/env"; fi; exec bash scripts/start-app.sh'])
@@ -316,7 +345,7 @@ def add_explicit(component, kind, source, commit):
     if descriptor.get('id') != component or descriptor.get('layer') != {'domains': 'domain', 'extensions': 'extension'}[kind]:
         raise ValueError(f'{folder}/bilibi.container.toml does not match the requested component; '
                          'checkout retained for inspection')
-    print(f'Added {component} at {folder}. Run ./bilibi start. Commit and push component edits before ./bilibi pin.')
+    print(f'Added {component} at {folder}. Run ./bilibi start. Commit and push component edits before ./bilibi build.')
 
 
 def add(component, kind=None, source=None, commit=None):
@@ -341,23 +370,31 @@ def add(component, kind=None, source=None, commit=None):
     folder = PLATFORM / 'apps' / layer / component
     if folder.exists() or folder.is_symlink():
         raise ValueError(f'{folder}: already exists; local work left unchanged. Run ./bilibi status.')
-    # Select the remote's default branch; pin will later record this exact commit.
+    # Select the remote's default branch; build can later record this commit.
     listing = run('git', 'ls-remote', url, 'HEAD', capture=True).split()
     if not listing:
         raise ValueError(f'{component}: remote has no HEAD')
     recipe.clone({'url': url, 'commit': listing[0]}, folder)
-    print(f'Added {component} at {folder}. Run ./bilibi start. Commit and push component edits before ./bilibi pin.')
+    print(f'Added {component} at {folder}. Run ./bilibi start. Commit and push component edits before ./bilibi build.')
 
 
 def selected_recipe():
     setup, _ = recipe.recipe()
     selected = {'format': 1, 'targets': setup['targets'], 'domains': [], 'extensions': []}
-    for name, folder in repositories():
+    pending = []
+    mounted = list(repositories())
+    missing = set(entries(setup)) - {name for name, _ in mounted}
+    if missing:
+        raise ValueError(f'{part_name(sorted(missing)[0])} is missing. Run ./bilibi setup.')
+    for name, folder in mounted:
+        if not folder.exists():
+            raise ValueError(f'{part_name(name)} is missing. Run ./bilibi setup.')
         recipe.checkout(folder)
         changes = run('git', 'status', '--porcelain', '--untracked-files=all', cwd=folder, capture=True)
         for line in changes.splitlines():
-            if name != 'platform' or line[3:] not in recipe.GENERATED or line[:2] not in (' M', 'M '):
-                raise ValueError(f'{folder}: commit local changes in this repository and push before ./bilibi pin ({line})')
+            if name != 'platform' or line[3:] not in recipe.GENERATED or line[:2] != ' M':
+                raise ValueError(f"{part_name(name)} has changes that aren't committed. Commit and push them first. ({folder}: {line})")
+            pending.append(line[3:])
         source = {'url': run('git', 'remote', 'get-url', 'origin', cwd=folder, capture=True).strip(),
                   'commit': run('git', 'rev-parse', 'HEAD', cwd=folder, capture=True).strip()}
         if name == 'platform':
@@ -365,6 +402,12 @@ def selected_recipe():
         else:
             _, layer, identity = name.split('/')
             selected[layer].append({'id': identity, **source})
+    if pending:
+        generated = generated_output('build')
+        if any(path not in generated or (PLATFORM / path).read_bytes() != generated[path]
+               or (PLATFORM / path).is_symlink()
+               or run('git', 'diff', '--summary', '--', path, cwd=PLATFORM, capture=True) for path in pending):
+            raise ValueError("Platform has changes that aren't committed. Commit and push them first.")
     return selected
 
 
@@ -380,35 +423,143 @@ def serialize(setup):
     return '\n'.join(lines) + '\n'
 
 
-def pin():
-    selected = selected_recipe()
+def ci_build():
+    return any(os.environ.get(key, '').lower() not in ('', '0', 'false')
+               for key in ('CI', 'GITHUB_ACTIONS'))
+
+
+def choose_versions(yes=False):
+    before = {name: (ROOT / name).read_bytes() for name in RECORD_FILES}
+    saved, _ = recipe.recipe()
+    observed = selected_recipe()
+    recipe.validate_recipe(observed)
+    old, current = entries(saved), entries(observed)
+    moved = []
+    # Check every part before asking or saving anything.
+    for name, source in current.items():
+        previous = old.get(name)
+        if previous and source['url'] != previous['url']:
+            raise ValueError(f'{part_name(name)} has a different origin from the saved build record. '
+                             'Restore its origin before building.')
+        if previous != source:
+            if not origin_serves(source['url'], source['commit']):
+                raise ValueError(f'{part_name(name)} has commits that are not pushed or cannot be fetched from origin. '
+                                 'Push them first and check your access to origin.')
+            moved.append((name, source, previous))
+    if moved and not yes and (ci_build() or not sys.stdin.isatty()):
+        names = ', '.join(part_name(name) for name, _, _ in moved)
+        verb = 'has' if len(moved) == 1 else 'have'
+        raise ValueError(f'{names} {verb} new commits since the last build. '
+                         'There is no keyboard. Run this command with --yes to build with them.')
+    selected = copy.deepcopy(saved)
+    for layer in ('domains', 'extensions'):
+        selected.setdefault(layer, [])
+    accepted = False
+    for name, source, previous in moved:
+        previous_short = previous['commit'][:7] if previous else 'not included'
+        question = (f'{part_name(name)} has new commits since the last build '
+                    f'({previous_short} -> {source["commit"][:7]}). Build with them? (y/n) ')
+        answer = 'y' if yes else ''
+        while answer not in ('y', 'yes', 'n', 'no'):
+            try:
+                answer = input(question).strip().lower()
+            except EOFError:
+                raise ValueError('No answer was received. Run this command with --yes to accept new commits.') from None
+        if answer in ('y', 'yes'):
+            accepted = True
+            if name == 'platform':
+                selected['platform'] = source
+            else:
+                layer = name.split('/')[1]
+                selected[layer] = [item for item in selected[layer] if item['id'] != source['id']] + [source]
+    if accepted:
+        save_record(selected, observed, before)
+
+
+def copy_build_files(candidate):
+    for name in ('scripts', 'composition'):
+        shutil.copytree(ROOT / name, candidate / name, ignore=shutil.ignore_patterns('__pycache__', 'node_modules'))
+    for name in ('setup.toml', 'builder.toml', 'rust-toolchain.toml', '.dockerignore'):
+        shutil.copyfile(ROOT / name, candidate / name)
+
+
+def candidate_environment():
+    env = dict(os.environ)
+    # A candidate must never restore over the developer's local source branches.
+    for key in ('BILIBI_SOURCE_DIR', 'BILIBI_BUILD_DIR', 'CARGO_TARGET_DIR'):
+        env.pop(key, None)
+    return env
+
+
+def build(command, yes=False):
+    script = 'scripts/check.sh' if command == 'check' else 'scripts/build.sh'
+    target = Path(os.environ.get('CARGO_TARGET_DIR', BUILD / 'target')).resolve()
+    if target.is_relative_to(recipe.SOURCES):
+        raise ValueError('CARGO_TARGET_DIR must be outside sources/; use build/target for outputs')
+    choose_versions(yes)
+    recipe.check_record()
     local = ROOT / '.local'
     local.mkdir(exist_ok=True)
-    before = {name: (ROOT / name).read_bytes() for name in ('setup.toml', 'composition/manifest.txt', 'composition/Cargo.lock')}
-    with tempfile.TemporaryDirectory(prefix='pin-candidate-', dir=local) as temp:
+    with tempfile.TemporaryDirectory(prefix='saved-build-', dir=local) as temp:
         candidate = Path(temp)
-        for name in ('scripts', 'composition'):
-            shutil.copytree(ROOT / name, candidate / name, ignore=shutil.ignore_patterns('__pycache__', 'node_modules'))
-        for name in ('builder.toml', 'rust-toolchain.toml', '.dockerignore'):
-            shutil.copyfile(ROOT / name, candidate / name)
-        (candidate / 'setup.toml').write_text(serialize(selected))
-        recipe.recipe(candidate)  # Validate every URL, commit and component ID first.
-        env = dict(os.environ)
-        # Never let a caller's path override make this candidate touch live sources.
-        for key in ('BILIBI_SOURCE_DIR', 'BILIBI_BUILD_DIR', 'CARGO_TARGET_DIR'):
-            env.pop(key, None)
+        copy_build_files(candidate)
+        env = candidate_environment()
+        # Reuse downloads and compiler output, but obtain source from the record.
+        env['BILIBI_BUILD_DIR'] = str(BUILD)
+        env['CARGO_TARGET_DIR'] = str(target)
         subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'materialize'], env=env, check=True)
-        subprocess.run(['bash', str(candidate / 'scripts/builder.sh'), 'python3', 'scripts/recipe.py', 'pin-candidate'], env=env, check=True)
-        recipe.check_pin(candidate)
-        if selected_recipe() != selected:
-            raise ValueError('Local source selections changed while preparing the candidate; saved set left unchanged. Rerun ./bilibi pin.')
+        subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'verify-remote'], env=env, check=True)
+        subprocess.run(['bash', str(candidate / 'scripts/builder.sh'), script], env=env, check=True)
+
+
+def release(tag):
+    publish.validate_tag(tag)
+    # Refuse unrelated staged, unstaged, renamed, deleted and untracked files.
+    changed = set(run('git', 'diff', '--name-only', '-z', 'HEAD', capture=True).split('\0'))
+    changed.update(run('git', 'diff', '--cached', '--name-only', '-z', capture=True).split('\0'))
+    changed.update(run('git', 'ls-files', '--others', '--exclude-standard', '-z', capture=True).split('\0'))
+    changed.discard('')
+    other = changed - set(RECORD_FILES)
+    if other:
+        raise ValueError('The application has changes outside the build record: '
+                         + ', '.join(sorted(other)) + '. Commit or remove them before releasing.')
+    recipe.check_record()
+    publish.check_new_tag(tag, ROOT)
+    if changed:
+        old = tomllib.loads(run('git', 'show', 'HEAD:setup.toml', capture=True))
+        current, _ = recipe.recipe()
+        before, after = entries(old), entries(current)
+        for name in sorted(before.keys() | after.keys()):
+            previous, following = before.get(name), after.get(name)
+            if previous != following:
+                print(f'{part_name(name)}: {previous["commit"][:7] if previous else "not included"} -> '
+                      f'{following["commit"][:7] if following else "removed"}', flush=True)
+        run('git', 'diff', '--stat', 'HEAD', '--', *RECORD_FILES)
+        run('git', 'commit', '--only', '-m', f'Record build versions for {tag}', '--', *RECORD_FILES)
+    publish.start_release(tag, ROOT)
+
+
+def save_record(selected, observed, before):
+    local = ROOT / '.local'
+    local.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='record-candidate-', dir=local) as temp:
+        candidate = Path(temp)
+        copy_build_files(candidate)
+        (candidate / 'setup.toml').write_text(serialize(selected))
+        recipe.recipe(candidate)
+        env = candidate_environment()
+        subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'materialize'], env=env, check=True)
+        subprocess.run(['bash', str(candidate / 'scripts/builder.sh'), 'python3', 'scripts/recipe.py', 'record-candidate'], env=env, check=True)
+        recipe.check_record(candidate)
+        if selected_recipe() != observed:
+            raise ValueError('Sources changed while preparing the build. The previous build record was kept. Run ./bilibi build again.')
         # Concurrent hand edits must never be overwritten by the prepared candidate.
         if any((ROOT / name).read_bytes() != data for name, data in before.items()):
-            raise ValueError('Saved recipe changed while pin was preparing; candidate discarded. Rerun ./bilibi pin.')
+            raise ValueError('The build record changed while preparing the build. Your changes were kept. Run ./bilibi build again.')
         try:
             for name in before:
                 replacement = ROOT / name
-                with tempfile.NamedTemporaryFile(prefix='.bilibi-pin-', dir=replacement.parent, delete=False) as stream:
+                with tempfile.NamedTemporaryFile(prefix='.bilibi-record-', dir=replacement.parent, delete=False) as stream:
                     pending = Path(stream.name)
                     stream.write((candidate / name).read_bytes())
                 try:
@@ -420,7 +571,7 @@ def pin():
             for name, data in before.items():
                 (ROOT / name).write_bytes(data)
             raise
-    print('Saved the validated candidate. Review and commit setup.toml and composition/ together. Run ./bilibi setup in a fresh clone, then ./bilibi check.')
+    print('Saved the build versions. Run ./bilibi release --tag setup-vX.Y.Z after checking them.')
 
 
 def check_staged():
@@ -429,18 +580,24 @@ def check_staged():
         (index / 'composition').mkdir()
         for name in ('setup.toml', 'composition/manifest.txt', 'composition/Cargo.lock'):
             (index / name).write_text(run('git', 'show', ':' + name, capture=True))
-        recipe.check_pin(index)
+        recipe.check_record(index)
 
 
 def main():
     parser = argparse.ArgumentParser(prog='./bilibi', description=__doc__)
-    parser.add_argument('command', nargs='?', choices=('help', 'start', 'update', 'add', 'status', 'setup', 'check', 'pin', 'build', 'check-staged'),
-                        metavar='{help,start,update,add,status,setup,check,pin,build}')
+    parser.add_argument('command', nargs='?', choices=('help', 'start', 'update', 'add', 'status', 'setup', 'check', 'build', 'release', 'check-staged'),
+                        metavar='{help,start,update,add,status,setup,check,build,release}')
     parser.add_argument('component', nargs='?')
     parser.add_argument('--kind', choices=('domains', 'extensions'), help='add: component mount kind; give with --source and --commit')
     parser.add_argument('--source', help='add: official BelimbingApp repository URL from Software')
     parser.add_argument('--commit', help='add: exact full lowercase commit ID from Software')
+    parser.add_argument('--yes', action='store_true', help='build/check: use all new pushed commits without asking')
+    parser.add_argument('--tag', help='release: a new version, such as setup-v1.0.0')
     args = parser.parse_args()
+    if args.yes and args.command not in ('build', 'check'):
+        parser.error('--yes is only for ./bilibi build and ./bilibi check')
+    if (args.command == 'release') != (args.tag is not None):
+        parser.error('Use ./bilibi release --tag setup-vX.Y.Z; --tag is only for release')
     supplied = (args.kind is not None, args.source is not None, args.commit is not None)
     if any(supplied) and args.command != 'add':
         parser.error('--kind, --source and --commit are only for ./bilibi add')
@@ -463,14 +620,15 @@ def main():
               'Work with your team\n'
               '  update        Get your team\'s latest pushed changes, and switch every source\n'
               '                to the versions saved in setup.toml.\n'
-              '  pin           Save the versions you are running into setup.toml and\n'
-              '                composition/. Commit and push your source changes first,\n'
-              '                then commit those files here. Needs Docker.\n\n'
+              '\n'
               'Before a release\n'
-              '  check         Build and test the saved versions against an empty test\n'
+              '  check         Choose versions, then build and test against an empty test\n'
               '                database. Needs Docker.\n'
-              '  build         Build the release program from the saved versions. Needs Docker.\n'
-              '                docs/guides/releasing.md explains how to publish a release.\n\n'
+              '  build         Ask about new commits, save your choices, and build. Needs Docker.\n'
+              '                For scripts, use build --yes or check --yes to accept new commits.\n'
+              '  release --tag setup-vX.Y.Z\n'
+              '                Commit the build record and start the release on GitHub.\n'
+              '                docs/guides/releasing.md explains the final publish step.\n\n'
               'Less often\n'
               '  setup         Install the tools and fetch the sources, without starting.\n'
               '  help          Show this list.')
@@ -488,10 +646,9 @@ def main():
         if args.command == 'add':
             add(args.component, args.kind, args.source, args.commit)
         elif args.command in ('check', 'build'):
-            recipe.check_sources()
-            recipe.check_pin()
-            recipe.verify_remote()
-            run('bash', ROOT / 'scripts/builder.sh', 'scripts/check.sh' if args.command == 'check' else 'scripts/build.sh')
+            build(args.command, args.yes)
+        elif args.command == 'release':
+            release(args.tag)
         else:
             globals()[args.command]()
 

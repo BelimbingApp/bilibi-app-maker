@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Materialize the setup; resolve only on pin, restore everywhere else."""
+"""Restore and verify the application’s saved build record."""
 import argparse
 import hashlib
 import importlib.util
@@ -42,7 +42,10 @@ def digest(path):
 
 
 def recipe(root=ROOT):
-    setup = read(root / 'setup.toml')
+    return validate_recipe(read(root / 'setup.toml'))
+
+
+def validate_recipe(setup):
     if set(setup) - {'format', 'targets', 'platform', 'domains', 'extensions'}:
         raise ValueError('Unknown setup.toml keys')
     if setup.get('format') != 1 or setup.get('targets') != [TARGET]:
@@ -78,7 +81,7 @@ def check_sources():
         if folder.is_symlink() or Path(run('git', 'rev-parse', '--show-toplevel', cwd=folder, capture=True).strip()).resolve() != folder:
             raise ValueError(f'{path}: expected an independent checkout')
         if run('git', 'rev-parse', 'HEAD', cwd=folder, capture=True).strip() != source['commit']:
-            raise ValueError(f'{folder}: HEAD differs from setup.toml; commit and push local work, then run ./bilibi pin, or deliberately check out {source["commit"]}')
+            raise ValueError(f'{folder}: HEAD differs from the saved build record; run ./bilibi build to choose versions, or check out {source["commit"]}')
         if run('git', 'remote', 'get-url', 'origin', cwd=folder, capture=True).strip() != source['url']:
             raise ValueError(f'{path}: origin differs from setup.toml')
         # Only the discover-modules outputs may differ in the Platform checkout.
@@ -128,7 +131,7 @@ def materialize():
             head = run('git', 'rev-parse', 'HEAD', cwd=folder, capture=True).strip()
             origin = run('git', 'remote', 'get-url', 'origin', cwd=folder, capture=True).strip()
             if head != source['commit'] or origin != source['url']:
-                print(f'{folder}: differs from setup.toml; local work preserved. Run ./bilibi status; commit and push before ./bilibi pin.')
+                print(f'{folder}: differs from the saved build record. Run ./bilibi build to choose versions.')
 
 
 def discovery_module():
@@ -141,7 +144,7 @@ def discovery_module():
 def verify_remote():
     """Prove remote availability and version labels without local objects or credentials on disk."""
     _, sources = recipe()
-    pin = check_pin()
+    record = check_record()
     BUILD.mkdir(parents=True, exist_ok=True)
     discovery = discovery_module()
     with tempfile.TemporaryDirectory(prefix='source-proof-', dir=BUILD) as temp:
@@ -149,29 +152,29 @@ def verify_remote():
             folder = Path(temp) / str(index)
             clone(source, folder)
             if path == 'platform':
-                expected = (pin.get('platform_tag') or '')[1:] or None
+                expected = (record.get('platform_tag') or '')[1:] or None
             else:
-                expected = pin['containers'][path.removeprefix('apps/')].get('version')
+                expected = record['containers'][path.removeprefix('apps/')].get('version')
             if discovery.version_at_head(path, folder) != expected:
-                raise ValueError(f'{path}: remote version tags differ from the saved pin')
+                raise ValueError(f'{path}: remote version tags differ from the saved build record')
 
 
-def check_pin(root=ROOT):
+def check_record(root=ROOT):
     _, sources = recipe(root)
-    pin = read(root / 'composition/manifest.txt')
-    if pin['platform'] != sources[0][1]['commit']:
-        raise ValueError('The saved pin names another Platform commit; run pin after editing setup.toml')
+    record = read(root / 'composition/manifest.txt')
+    if record['platform'] != sources[0][1]['commit']:
+        raise ValueError('The saved build record names another Platform commit; restore the three record files together')
     containers = {path.removeprefix('apps/'): source['commit'] for path, source in sources[1:]}
-    if {name: item['head'] for name, item in pin.get('containers', {}).items()} != containers:
-        raise ValueError('The saved pin names other Domains or Extensions; run pin')
-    if digest(root / 'composition/Cargo.lock') != pin['cargo_lock_sha256']:
-        raise ValueError('The saved Cargo.lock does not match the pin')
-    return pin
+    if {name: item['head'] for name, item in record.get('containers', {}).items()} != containers:
+        raise ValueError('The saved build record names other Domains or Extensions; restore the three record files together')
+    if digest(root / 'composition/Cargo.lock') != record['cargo_lock_sha256']:
+        raise ValueError('The saved Cargo.lock does not match the saved build record')
+    return record
 
 
 def restore():
     check_sources()
-    pin = check_pin()
+    record = check_record()
     target = PLATFORM / '.local/composition'
     target.mkdir(parents=True, exist_ok=True)
     for name in ('manifest.txt', 'Cargo.lock'):
@@ -182,16 +185,16 @@ def restore():
     run('python3', 'scripts/discover-modules.py', '--check')
     # Compare all saved version tags with the tags actually fetched.
     discovery = discovery_module()
-    tag = pin.get('platform_tag')
+    tag = record.get('platform_tag')
     if discovery.version_at_head('Platform', PLATFORM) != (tag[1:] if tag else None):
-        raise ValueError('Platform version tags changed since pinning')
-    for name, item in pin.get('containers', {}).items():
+        raise ValueError('Platform version tags changed since the build record was saved')
+    for name, item in record.get('containers', {}).items():
         if discovery.version_at_head(name, PLATFORM / 'apps' / name) != item.get('version'):
-            raise ValueError(f'{name}: version tags changed since pinning')
+            raise ValueError(f'{name}: version tags changed since the build record was saved')
     check_sources()
 
 
-def pin_candidate():
+def record_candidate():
     check_sources()
     run('python3', 'scripts/discover-modules.py')
     run('bash', 'scripts/build-assets.sh', '--check')
@@ -204,19 +207,19 @@ def pin_candidate():
 
 
 def checked_status(binary):
-    pin = check_pin()
+    record = check_record()
     status = run(str(binary.resolve()), 'status', capture=True)
     lines = status.splitlines()
     if len(lines) < 2 or lines[1] != 'Pin: .local/composition, compiled in at build time':
-        raise ValueError('The built program has no valid compiled composition pin')
-    expected = f'Bilibi {pin["platform_version"]}, '
-    expected += f'release {pin["platform_tag"]}' if pin.get('platform_tag') else 'unreleased'
-    expected += f', commit {pin["platform"]}'
+        raise ValueError('The built program has no valid build record compiled into it')
+    expected = f'Bilibi {record["platform_version"]}, '
+    expected += f'release {record["platform_tag"]}' if record.get('platform_tag') else 'unreleased'
+    expected += f', commit {record["platform"]}'
     if lines[0] != expected:
         raise ValueError('Program Platform identity differs from the saved recipe')
     expected_lines = []
     for layer, heading in (('domains', 'Domains'), ('extensions', 'Extensions')):
-        entries = [(name.split('/')[1], item) for name, item in pin.get('containers', {}).items() if name.startswith(layer + '/')]
+        entries = [(name.split('/')[1], item) for name, item in record.get('containers', {}).items() if name.startswith(layer + '/')]
         expected_lines.append(heading + (':' if entries else ': none mounted'))
         for name, item in sorted(entries):
             expected_lines.append(f'  {name} {item.get("version", "untagged")}, commit {item["head"]}, modules:')
@@ -230,14 +233,14 @@ def checked_status(binary):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('materialize', 'pin-candidate', 'restore', 'verify', 'verify-remote', 'check-pin', 'status'))
+    parser.add_argument('command', choices=('materialize', 'record-candidate', 'restore', 'verify', 'verify-remote', 'check-record', 'status'))
     parser.add_argument('--binary', type=Path)
     args = parser.parse_args()
     if args.command == 'status':
         print(checked_status(args.binary or Path(os.environ.get('CARGO_TARGET_DIR', BUILD / 'target')) / TARGET / 'release/bilibi-web'), end='')
     elif args.command == 'verify':
         check_sources()
-        check_pin()
+        check_record()
         run('python3', 'scripts/discover-modules.py', '--check')
         if digest(PLATFORM / 'Cargo.lock') != digest(ROOT / 'composition/Cargo.lock'):
             raise ValueError('The restored lock changed during validation')

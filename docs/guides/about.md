@@ -35,7 +35,7 @@ Today the maker gives you a running Bilibi and the commands to build, check and 
 | Choose business features | `./bilibi add <name>`, if you know the name | Pick from a list ([#11](https://github.com/BelimbingApp/bilibi-app-maker/issues/11)) |
 | Make it yours | Four Git commands, in [Start here](../../README.md#start-here) | `./bilibi own <owner/name>` ([#12](https://github.com/BelimbingApp/bilibi-app-maker/issues/12)) |
 | Use private Domains | Set up a GitHub App by hand, in [Private sources](private-sources.md#private-sources) | One command ([#13](https://github.com/BelimbingApp/bilibi-app-maker/issues/13)) |
-| Release and install | Several steps, in [Release your setup](releasing.md#release-your-setup) | `./bilibi release` ([#14](https://github.com/BelimbingApp/bilibi-app-maker/issues/14)) |
+| Release and install | `./bilibi release --tag setup-vX.Y.Z` starts the release; [publish the draft and install it](releasing.md#release-your-setup) | Combine the remaining steps ([#14](https://github.com/BelimbingApp/bilibi-app-maker/issues/14)) |
 | Stay current | Merge maker updates and move the Platform, separately | `./bilibi upgrade` ([#15](https://github.com/BelimbingApp/bilibi-app-maker/issues/15)) |
 
 ## Where to go next

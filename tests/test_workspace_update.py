@@ -34,7 +34,7 @@ if __name__ == '__main__':
 '''
 
 
-class UpdateTest(unittest.TestCase):
+class WorkspaceFixture(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='bilibi-update-test-')
         self.addCleanup(self.temp.cleanup)
@@ -73,7 +73,7 @@ class UpdateTest(unittest.TestCase):
         (self.platform_origin / 'apps/extensions/src/lib.rs').write_text('// empty\n')
         (self.platform_origin / 'apps/domains/Cargo.toml').write_text('# Unmounted\n')
         (self.platform_origin / 'Cargo.lock').write_text('# Platform lock\n')
-        (self.platform_origin / '.gitignore').write_text('/apps/domains/finance/\n/.local/\n__pycache__/\n')
+        (self.platform_origin / '.gitignore').write_text('/apps/domains/finance/\n/apps/extensions/extra/\n/.local/\n__pycache__/\n')
         (self.platform_origin / 'notes').write_text('platform work\n')
         self.commit(self.platform_origin, 'Platform one')
         self.platform_first = self.git(self.platform_origin, 'rev-parse', 'HEAD')
@@ -148,6 +148,9 @@ class UpdateTest(unittest.TestCase):
                           self.git(folder, 'diff', '--binary'), self.git(folder, 'diff', '--cached', '--binary')))
         return state
 
+
+
+class UpdateTest(WorkspaceFixture):
     def test_update_pulls_recipe_restores_sources_and_regenerates(self):
         self.upstream()
         expected = {name: (self.author / name).read_bytes() for name in
@@ -201,7 +204,7 @@ class UpdateTest(unittest.TestCase):
                     original = self.platform_first if folder == self.platform else self.domain_first
                     self.git(folder, 'checkout', '--detach', original)
 
-    def test_pin_published_only_as_a_tag_is_not_called_unpushed(self):
+    def test_record_published_only_as_a_tag_is_not_called_unpushed(self):
         self.git(self.domain_origin, 'checkout', '-b', 'release-work')
         (self.domain_origin / 'notes').write_text('tagged release\n')
         self.commit(self.domain_origin, 'Tagged release')
@@ -210,7 +213,7 @@ class UpdateTest(unittest.TestCase):
         self.git(self.domain_origin, 'checkout', '-')
         self.git(self.domain_origin, 'branch', '-D', 'release-work')
         self.save_recipe(self.platform_first, tagged)
-        self.commit(self.author, 'Pin tagged release')
+        self.commit(self.author, 'Record tagged release')
         self.git(self.author, 'push')
         self.command('update')
         self.assertEqual(self.git(self.domain, 'rev-parse', 'HEAD'), tagged)
@@ -233,7 +236,7 @@ class UpdateTest(unittest.TestCase):
         self.assertEqual(before, self.snapshot())
         self.assertEqual(unknown.read_text(), 'keep this\n')
 
-    def test_published_source_branch_is_preserved_when_returning_to_pin(self):
+    def test_published_source_branch_is_preserved_when_returning_to_saved_record(self):
         self.git(self.domain, 'checkout', '-b', 'published-work')
         self.git(self.domain, 'commit', '--allow-empty', '-m', 'Published work')
         published = self.git(self.domain, 'rev-parse', 'HEAD')

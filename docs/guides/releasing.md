@@ -1,21 +1,30 @@
 # Releasing your application
 
-Save the versions you have tested, then publish a release for your servers.
+Build the versions you want to use, check them, then release the saved build record to your servers.
 
-## Save selected versions
+## Build your versions
 
-Edit component source in its own repository, commit it and push it to its declared `origin`. Then run:
+For example, fix Finance in `sources/platform/apps/domains/finance`, then commit and push it to `origin`. Run:
 
 ```sh
-./bilibi pin
-git diff -- setup.toml composition/
+./bilibi build
 ```
 
-Pin reads the current Platform, Domain and Extension commits and origins, including components mounted by `add`. It refuses uncommitted edits outside recognised generated composition. It reconstructs a candidate from the declared HTTPS remotes without reusing local Git objects, checks assets, resolves dependencies in the pinned builder and validates the resulting pin and lock. Only then does it replace `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock`. A failed candidate leaves the previous saved set intact. Review and commit all three together.
+Build compares each local Platform, Domain and Extension checkout with the last saved build record. For each part that changed, it asks:
 
-Each source URL must use HTTPS without credentials and each commit must be a full lowercase 40-character ID. Domains and Extensions also need their declared `id`. Domains and Extensions are optional.
+```text
+finance has new commits since the last build (abc1234 -> def5678). Build with them? (y/n)
+```
 
-Checks restore the saved lock; they never resolve a new dependency set. They verify remote availability and saved version tags independently of your local objects. A local-only commit is insufficient for a release.
+Say **yes** to use those commits and save them, or **no** to build that part's saved version. You can choose separately for each part. A newly added part shows `not included` as its previous version. Your local branches stay where they are.
+
+**Commit and push your source edits first.** Build stops for uncommitted edits or commits that cannot be fetched from `origin`. It allows only verified generated composition files in the Platform checkout. `./bilibi check` uses the same choices. With no terminal, a changed part stops the command; `./bilibi build --yes` or `./bilibi check --yes` accepts all new pushed commits in a script.
+
+When you accept a change, the command fetches a candidate from the declared HTTPS remotes without reusing local Git objects. It checks assets, resolves dependencies in the recorded builder and validates the record and lock. Only then does it replace `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock`. A failed candidate leaves the previous saved set intact. The build then uses a separate checkout of the saved versions. If compilation or checks fail later, the saved record remains available for review and another attempt.
+
+Each source URL must use HTTPS without credentials and each commit must be a full lowercase 40-character ID. Domains and Extensions also need their declared `id`. Domains and Extensions are optional. Keep each part's `origin` at the URL in the saved record.
+
+Builds with no accepted changes restore the saved dependency lock. They do not choose new dependencies. The release workflow on GitHub always builds only the committed record, even if `--yes` is supplied. It never asks about local sources or updates the record.
 
 Run the combined gates with a **separate empty disposable PostgreSQL 18 database**:
 
@@ -27,18 +36,19 @@ export BILIBI_CHECK_DATABASE_URL=postgresql://YOUR-USER@127.0.0.1:5432/EMPTY-DIS
 
 `DATABASE_URL` remains your development connection and is never an implicit check target. Check refuses the same database or a database with existing tables or views. Check leaves its migrations and production seed in the disposable database; provide a new empty database on the next run. It seeds that database as a Dev copy, because its boot check uses HTTP on a loopback address, which the Platform allows only for Dev copies. Docker uses host networking to reach it. Set `SETUP_CI_PORT` if the default check port, 38971, is occupied.
 
-`BILIBI_SOURCE_DIR` overrides the source directory; `BILIBI_BUILD_DIR` still overrides outputs and caches. `CARGO_TARGET_DIR` overrides Cargo output. Use absolute paths outside editable sources for outputs. The builder maps all three consistently into its container. Pin candidates always use their own directories and ignore these overrides.
+`BILIBI_SOURCE_DIR` overrides the source directory; `BILIBI_BUILD_DIR` still overrides outputs and caches. `CARGO_TARGET_DIR` overrides Cargo output. Use absolute paths outside editable sources for outputs. The builder maps all three consistently into its container. Record candidates always use their own directories and ignore these overrides. Builds use separate source checkouts and reuse your output and cache directories.
 
 ## Release your setup
 
 **Build in development or GitHub Actions; servers install the finished release.** Before releasing, enable **release immutability** in your application repository's Settings. Protect `main` and the `setup-v*` tags so only release maintainers can change them, and allow GitHub Actions to run.
 
-After the checks pass, tag the reviewed recipe commit:
+After the checks pass, start a release with a new application version:
 
 ```sh
-git tag setup-v1.0.0
-git push origin setup-v1.0.0
+./bilibi release --tag setup-v1.0.0
 ```
+
+Release shows which parts moved and commits only `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock` when they changed. It refuses other uncommitted application files. It then tags the saved record and pushes the tag to `origin`, starting the existing **Release setup** workflow. If the record was already committed, it tags that commit. Release never selects new source versions.
 
 The setup version belongs to your repository. It is separate from the Platform and Domain versions. **Never move a published tag or replace a published asset.**
 
