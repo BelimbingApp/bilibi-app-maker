@@ -30,6 +30,7 @@ jobs:
           --health-cmd pg_isready --health-interval 5s
           --health-timeout 5s --health-retries 12
     env:
+      BILIBI_SAVED_RECORD_ONLY: '1'
       BILIBI_CHECK_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/setup_check
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -61,7 +62,7 @@ jobs:
           GIT_ASKPASS="$PWD/scripts/source-askpass.sh" python3 scripts/recipe.py materialize
           GIT_ASKPASS="$PWD/scripts/source-askpass.sh" python3 scripts/recipe.py verify-remote
       - name: Validate the saved recipe and lock
-        run: python3 scripts/recipe.py check-pin
+        run: python3 scripts/recipe.py check-record
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
@@ -69,6 +70,7 @@ jobs:
             build/cargo/git
             build/target
           key: linux-x86_64-${{ hashFiles('setup.toml', 'composition/*', 'rust-toolchain.toml', 'builder.toml', 'scripts/Builder.Dockerfile') }}
+      # Call the saved-record scripts directly; CI never chooses or saves versions.
       - name: Restore and check the whole setup
         run: |
           mkdir -p build/evidence

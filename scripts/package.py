@@ -42,10 +42,10 @@ def main():
     if recipe.run('git', 'status', '--porcelain', cwd=recipe.ROOT, capture=True).strip():
         raise ValueError('Commit the recipe and scripts before packaging')
     recipe.check_sources()
-    pin = recipe.check_pin()
+    record = recipe.check_record()
     recipe.run('python3', 'scripts/discover-modules.py', '--check')
-    if recipe.digest(recipe.PLATFORM / 'Cargo.lock') != pin['cargo_lock_sha256']:
-        raise ValueError('The build lock no longer matches the saved pin')
+    if recipe.digest(recipe.PLATFORM / 'Cargo.lock') != record['cargo_lock_sha256']:
+        raise ValueError('The build lock no longer matches the saved build record')
     builder = recipe.read(recipe.ROOT / 'builder.toml')
     toolchain = recipe.read(recipe.ROOT / 'rust-toolchain.toml')
     rust = recipe.run('rustc', '--version', capture=True).strip()
@@ -63,14 +63,14 @@ def main():
     setup = {'repository': args.repository, 'commit': commit, 'tag': args.tag, 'sources': sources}
     metadata = {
         'format': 1, 'setup': setup, 'toolchain': toolchain, 'builder': builder,
-        'platform': {'version': pin['platform_version'], 'commit': pin['platform'], 'release': pin.get('platform_tag')},
+        'platform': {'version': record['platform_version'], 'commit': record['platform'], 'release': record.get('platform_tag')},
         'domains': [], 'extensions': [], 'status': status,
         'built_for': {'target': recipe.TARGET, 'os': 'linux', 'arch': 'x86_64',
                       'system_library': recipe.run('getconf', 'GNU_LIBC_VERSION', capture=True).strip()},
         'dynamic_dependencies': recipe.run('objdump', '-p', str(binary), capture=True),
-        'cargo_lock_sha256': pin['cargo_lock_sha256'],
+        'cargo_lock_sha256': record['cargo_lock_sha256'],
     }
-    for name, item in sorted(pin.get('containers', {}).items()):
+    for name, item in sorted(record.get('containers', {}).items()):
         layer, container = name.split('/')
         # reference is the legacy upload preview's commit key. Keep commit too,
         # which is the installer result's existing composition vocabulary.

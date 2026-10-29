@@ -46,22 +46,21 @@ Your folder now has two remotes. `origin` is your application, where you push. `
 > [!WARNING]
 > Clone the maker as shown. A copy made any other way, such as a downloaded ZIP file, has none of the maker's history, and maker updates can then no longer merge.
 
-4. Save the versions you use, then release. When the Domains you added work, record their exact versions and commit them. This step needs Docker:
+4. Build and release the versions you tested. Commit and push changes in each part's own repository first. These commands need Docker:
 
 ```sh
-./bilibi pin
-git add setup.toml composition/
-git commit -m "Add Finance"
-git push
+./bilibi build
+./bilibi release --tag setup-v1.0.0
 ```
 
+Build asks about each part with new commits. Say yes to use them and save the build record, or no to build its saved version. Release commits that record and starts the GitHub release build. GitHub uses exactly those saved versions.
 To install it on a server, follow [Release your setup](docs/guides/releasing.md#release-your-setup) and [Install a release](docs/guides/installing.md#install-a-release).
 
 ## Guides
 
 - [Settings](docs/guides/settings.md): local addresses, databases and settings for each instance.
 - [Running your application](docs/guides/running.md): requirements, workspace, commands and commit safeguards.
-- [Releasing your application](docs/guides/releasing.md): save versions, check, build and publish a release.
+- [Releasing your application](docs/guides/releasing.md): build, check and release your application.
 - [Installing a release](docs/guides/installing.md): put a tested release on Staging and Production.
 - [Private sources](docs/guides/private-sources.md): give checks access to private repositories.
 - [Taking maker updates](docs/guides/maker-updates.md): merge maker improvements and update older workspaces.
