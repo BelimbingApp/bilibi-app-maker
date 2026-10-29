@@ -493,14 +493,6 @@ def candidate_environment():
 
 def build(command, yes=False):
     script = 'scripts/check.sh' if command == 'check' else 'scripts/build.sh'
-    if os.environ.get('BILIBI_SAVED_RECORD_ONLY') == '1':
-        # Release checks never choose versions, even when --yes was supplied.
-
-        recipe.check_sources()
-        recipe.check_record()
-        recipe.verify_remote()
-        run('bash', ROOT / 'scripts/builder.sh', script)
-        return
     target = Path(os.environ.get('CARGO_TARGET_DIR', BUILD / 'target')).resolve()
     if target.is_relative_to(recipe.SOURCES):
         raise ValueError('CARGO_TARGET_DIR must be outside sources/; use build/target for outputs')

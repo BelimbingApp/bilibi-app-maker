@@ -64,7 +64,6 @@ class BuildRecordTest(WorkspaceFixture):
         super().setUp()
         self.env.pop('CI', None)
         self.env.pop('GITHUB_ACTIONS', None)
-        self.env.pop('BILIBI_SAVED_RECORD_ONLY', None)
         for name in ('builder.toml', 'rust-toolchain.toml', '.dockerignore'):
             (self.app / name).write_text('# fixture\n')
         for name in ('build.sh', 'check.sh'):
@@ -189,14 +188,6 @@ class BuildRecordTest(WorkspaceFixture):
                       self.command('build', '--yes', ok=False))
         self.assertEqual(self.record(), self.initial)
         self.assertEqual(self.snapshot(), before)
-
-    def test_release_ci_never_accepts_or_updates_record_even_with_yes(self):
-        self.move(self.domain)
-        self.env['CI'] = 'true'
-        self.env['BILIBI_SAVED_RECORD_ONLY'] = '1'
-        self.command('build', '--yes', ok=False)
-        self.assertEqual(self.record(), self.initial)
-        self.assertFalse((self.app / 'build/built.json').exists())
 
     def test_other_ci_requires_yes_and_accepts_pushed_commits(self):
         head = self.move(self.domain)
