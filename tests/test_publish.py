@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import tempfile
 import unittest
 
@@ -61,3 +62,34 @@ class FindReleaseTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StartReleaseTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.remote = Path(self.tmp.name) / 'remote.git'
+        self.work = Path(self.tmp.name) / 'work'
+        subprocess.run(['git', 'init', '-q', '--bare', str(self.remote)], check=True)
+        subprocess.run(['git', 'init', '-q', str(self.work)], check=True)
+        self.git('config', 'user.email', 'a@example.test')
+        self.git('config', 'user.name', 'A')
+        self.git('commit', '-q', '--allow-empty', '-m', 'First')
+        self.git('remote', 'add', 'origin', str(self.remote))
+
+    def git(self, *args):
+        return subprocess.run(['git', *args], cwd=self.work, text=True, stdout=subprocess.PIPE, check=True).stdout
+
+    def test_pushes_the_new_tag(self):
+        publish.start_release('setup-v1.0.0', self.work)
+        self.assertIn('setup-v1.0.0', self.git('ls-remote', '--tags', 'origin'))
+
+    def test_failed_push_removes_the_local_tag_so_the_release_can_be_retried(self):
+        self.git('remote', 'set-url', 'origin', str(self.remote / 'missing'))
+        with self.assertRaisesRegex(ValueError, 'was not published'):
+            publish.start_release('setup-v1.0.0', self.work)
+        self.assertEqual(self.git('tag', '--list'), '')
+        self.git('remote', 'set-url', 'origin', str(self.remote))
+        publish.check_new_tag('setup-v1.0.0', self.work)
+        publish.start_release('setup-v1.0.0', self.work)
+        self.assertIn('setup-v1.0.0', self.git('ls-remote', '--tags', 'origin'))

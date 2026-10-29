@@ -90,7 +90,10 @@ def check_new_tag(tag, root):
 
 def start_release(tag, root):
     subprocess.run(['git', 'tag', tag], cwd=root, check=True)
-    subprocess.run(['git', 'push', 'origin', f'refs/tags/{tag}'], cwd=root, check=True)
+    if subprocess.run(['git', 'push', 'origin', f'refs/tags/{tag}'], cwd=root).returncode != 0:
+        subprocess.run(['git', 'tag', '-d', tag], cwd=root, check=True)
+        raise ValueError(f'{tag} was not published to origin. Check your connection and Git access, '
+                         'then run the release command again.')
     print(f'Started the GitHub release build for {tag}. Follow Release setup in GitHub Actions. '
           'Publish the verified draft using docs/guides/releasing.md.')
 
