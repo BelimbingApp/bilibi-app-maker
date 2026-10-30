@@ -294,7 +294,9 @@ def update():
     print('Updated application and restored saved source commits and composition. Run ./bilibi build to choose new versions.')
 
 
-def start():
+def start(no_open=False):
+    if no_open:
+        os.environ['BILIBI_OPEN_BROWSER'] = '0'
     setup()
     status()
     print('\nStarting local sources with the development seed. The next build will ask about new commits.', flush=True)
@@ -591,9 +593,12 @@ def main():
     parser.add_argument('--kind', choices=('domains', 'extensions'), help='add: component mount kind; give with --source and --commit')
     parser.add_argument('--source', help='add: official BelimbingApp repository URL from Software')
     parser.add_argument('--commit', help='add: exact full lowercase commit ID from Software')
+    parser.add_argument('--no-open', action='store_true', help='start: do not open a browser tab')
     parser.add_argument('--yes', action='store_true', help='build/check: use all new pushed commits without asking')
     parser.add_argument('--tag', help='release: a new version, such as setup-v1.0.0')
     args = parser.parse_args()
+    if args.no_open and args.command != 'start':
+        parser.error('--no-open is only for ./bilibi start')
     if args.yes and args.command not in ('build', 'check'):
         parser.error('--yes is only for ./bilibi build and ./bilibi check')
     if (args.command == 'release') != (args.tag is not None):
@@ -612,6 +617,7 @@ def main():
               'Run your application on this computer\n'
               '  start         Install anything missing, run the application, and open it\n'
               '                in your browser.\n'
+              '  start --no-open  Start without opening a browser tab.\n'
               '  add <name>    Add a Domain or Extension, such as: ./bilibi add finance\n'
               '                Or paste the add command that the Software page shows.\n'
               '                Then run ./bilibi start again to use it.\n'
@@ -645,6 +651,8 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX)
         if args.command == 'add':
             add(args.component, args.kind, args.source, args.commit)
+        elif args.command == 'start':
+            start(args.no_open)
         elif args.command in ('check', 'build'):
             build(args.command, args.yes)
         elif args.command == 'release':
