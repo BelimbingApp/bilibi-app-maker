@@ -136,6 +136,7 @@ def setup():
     recipe.materialize()
     hooks()
     output_paths()
+    os.environ['BILIBI_FRONT_DOOR'] = '1'
     run('bash', ROOT / 'scripts/dev-setup.sh', PLATFORM)
     print('Setup complete. Local sources and runtime data are preserved. Run ./bilibi start.')
 
