@@ -20,7 +20,7 @@ Say **yes** to use those commits and save them, or **no** to build that part's s
 
 **Commit and push your source edits first.** Build stops for uncommitted edits or commits that cannot be fetched from `origin`. It allows only verified generated composition files in the Platform checkout. `./bilibi check` uses the same choices. With no terminal, a changed part stops the command; `./bilibi build --yes` or `./bilibi check --yes` accepts all new pushed commits in a script.
 
-When you accept a change, the command fetches a candidate from the declared HTTPS remotes without reusing local Git objects. It checks assets, resolves dependencies in the recorded builder and validates the record and lock. Only then does it replace `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock`. A failed candidate leaves the previous saved set intact. The build then uses a separate checkout of the saved versions. If compilation or checks fail later, the saved record remains available for review and another attempt.
+When you accept a change, the command fetches a candidate from the declared HTTPS remotes without reusing local Git objects. It checks assets, resolves dependencies in the recorded builder and validates the record and lock. It builds or checks a separate checkout of that candidate, and only after the command succeeds does it replace `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock`. A failed candidate, compilation or check leaves the previous saved set intact. Release is allowed only when the current record matches the record from the last successful build or check; otherwise run `./bilibi build` first.
 
 Each source URL must use HTTPS without credentials and each commit must be a full lowercase 40-character ID. Domains and Extensions also need their declared `id`. Domains and Extensions are optional. Keep each part's `origin` at the URL in the saved record.
 
@@ -48,7 +48,7 @@ After the checks pass, start a release with a new application version:
 ./bilibi release --tag setup-v1.0.0
 ```
 
-Release shows which parts moved and commits only `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock` when they changed. It refuses other uncommitted application files. It then tags the saved record and pushes the tag to `origin`, starting the existing **Release setup** workflow. If the record was already committed, it tags that commit. Release never selects new source versions.
+Release shows which parts moved and commits only `setup.toml`, `composition/manifest.txt` and `composition/Cargo.lock` when they changed. It refuses other uncommitted application files and refuses to release unless the current record matches the last successful build or check. If there is no successful build of that record, run `./bilibi build` first. It then tags the saved record and pushes the tag to `origin`, starting the existing **Release setup** workflow. If the record was already committed, it tags that commit. Release never selects new source versions.
 
 The setup version belongs to your repository. It is separate from the Platform and Domain versions. **Never move a published tag or replace a published asset.**
 

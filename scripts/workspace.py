@@ -3,6 +3,7 @@
 import argparse
 import copy
 import fcntl
+import hashlib
 import importlib.util
 import json
 import os
@@ -473,8 +474,7 @@ def choose_versions(yes=False):
             else:
                 layer = name.split('/')[1]
                 selected[layer] = [item for item in selected[layer] if item['id'] != source['id']] + [source]
-    if accepted:
-        save_record(selected, observed, before)
+    return selected, observed, before, accepted
 
 
 def copy_build_files(candidate):
@@ -497,7 +497,7 @@ def build(command, yes=False):
     target = Path(os.environ.get('CARGO_TARGET_DIR', BUILD / 'target')).resolve()
     if target.is_relative_to(recipe.SOURCES):
         raise ValueError('CARGO_TARGET_DIR must be outside sources/; use build/target for outputs')
-    choose_versions(yes)
+    selected, observed, before, accepted = choose_versions(yes)
     recipe.check_record()
     local = ROOT / '.local'
     local.mkdir(exist_ok=True)
@@ -505,12 +505,20 @@ def build(command, yes=False):
         candidate = Path(temp)
         copy_build_files(candidate)
         env = candidate_environment()
-        # Reuse downloads and compiler output, but obtain source from the record.
+        if accepted:
+            (candidate / 'setup.toml').write_text(serialize(selected))
+            subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'materialize'], env=env, check=True)
+            subprocess.run(['bash', str(candidate / 'scripts/builder.sh'), 'python3', 'scripts/recipe.py', 'record-candidate'], env=env, check=True)
+            recipe.check_record(candidate)
+        # Reuse downloads and compiler output, but obtain source from the candidate record.
         env['BILIBI_BUILD_DIR'] = str(BUILD)
         env['CARGO_TARGET_DIR'] = str(target)
         subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'materialize'], env=env, check=True)
         subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'verify-remote'], env=env, check=True)
         subprocess.run(['bash', str(candidate / 'scripts/builder.sh'), script], env=env, check=True)
+        if accepted:
+            save_record(candidate, observed, before)
+        mark_successful_build(candidate)
 
 
 def release(tag):
@@ -524,6 +532,8 @@ def release(tag):
     if other:
         raise ValueError('The application has changes outside the build record: '
                          + ', '.join(sorted(other)) + '. Commit or remove them before releasing.')
+    if not successful_build_matches():
+        raise ValueError('Run ./bilibi build first.')
     recipe.check_record()
     publish.check_new_tag(tag, ROOT)
     if changed:
@@ -540,38 +550,56 @@ def release(tag):
     publish.start_release(tag, ROOT)
 
 
-def save_record(selected, observed, before):
+def record_fingerprint(root):
+    digest = hashlib.sha256()
+    for name in RECORD_FILES:
+        digest.update(name.encode() + b'\0' + (root / name).read_bytes() + b'\0')
+    return digest.hexdigest()
+
+
+def successful_build_matches():
+    try:
+        saved = (ROOT / '.local/successful-build').read_text().strip()
+    except OSError:
+        return False
+    return saved == record_fingerprint(ROOT)
+
+
+def mark_successful_build(candidate):
     local = ROOT / '.local'
-    local.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='record-candidate-', dir=local) as temp:
-        candidate = Path(temp)
-        copy_build_files(candidate)
-        (candidate / 'setup.toml').write_text(serialize(selected))
-        recipe.recipe(candidate)
-        env = candidate_environment()
-        subprocess.run(['python3', str(candidate / 'scripts/recipe.py'), 'materialize'], env=env, check=True)
-        subprocess.run(['bash', str(candidate / 'scripts/builder.sh'), 'python3', 'scripts/recipe.py', 'record-candidate'], env=env, check=True)
-        recipe.check_record(candidate)
-        if selected_recipe() != observed:
-            raise ValueError('Sources changed while preparing the build. The previous build record was kept. Run ./bilibi build again.')
-        # Concurrent hand edits must never be overwritten by the prepared candidate.
-        if any((ROOT / name).read_bytes() != data for name, data in before.items()):
-            raise ValueError('The build record changed while preparing the build. Your changes were kept. Run ./bilibi build again.')
-        try:
-            for name in before:
-                replacement = ROOT / name
-                with tempfile.NamedTemporaryFile(prefix='.bilibi-record-', dir=replacement.parent, delete=False) as stream:
-                    pending = Path(stream.name)
-                    stream.write((candidate / name).read_bytes())
-                try:
-                    pending.chmod(replacement.stat().st_mode & 0o777)
-                    pending.replace(replacement)
-                finally:
-                    pending.unlink(missing_ok=True)
-        except BaseException:
-            for name, data in before.items():
-                (ROOT / name).write_bytes(data)
-            raise
+    marker = local / 'successful-build'
+    with tempfile.NamedTemporaryFile(prefix='.bilibi-successful-build-', dir=local, mode='w', delete=False) as stream:
+        pending = Path(stream.name)
+        stream.write(record_fingerprint(candidate) + '\n')
+    try:
+        pending.replace(marker)
+    finally:
+        pending.unlink(missing_ok=True)
+
+
+def save_record(candidate, observed, before):
+    recipe.recipe(candidate)
+    recipe.check_record(candidate)
+    if selected_recipe() != observed:
+        raise ValueError('Sources changed while building. The previous build record was kept. Run ./bilibi build again.')
+    # Concurrent hand edits must never be overwritten by the prepared candidate.
+    if any((ROOT / name).read_bytes() != data for name, data in before.items()):
+        raise ValueError('The build record changed while building. Your changes were kept. Run ./bilibi build again.')
+    try:
+        for name in before:
+            replacement = ROOT / name
+            with tempfile.NamedTemporaryFile(prefix='.bilibi-record-', dir=replacement.parent, delete=False) as stream:
+                pending = Path(stream.name)
+                stream.write((candidate / name).read_bytes())
+            try:
+                pending.chmod(replacement.stat().st_mode & 0o777)
+                pending.replace(replacement)
+            finally:
+                pending.unlink(missing_ok=True)
+    except BaseException:
+        for name, data in before.items():
+            (ROOT / name).write_bytes(data)
+        raise
     print('Saved the build versions. Run ./bilibi release --tag setup-vX.Y.Z after checking them.')
 
 

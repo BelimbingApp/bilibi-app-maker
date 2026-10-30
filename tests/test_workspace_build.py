@@ -228,16 +228,30 @@ class BuildRecordTest(WorkspaceFixture):
         self.assertIn("finance has changes that aren't committed", self.command('check', '--yes', ok=False))
         self.assertEqual(self.snapshot(), before)
 
-    def test_failed_build_keeps_new_record_available(self):
-        head = self.move(self.domain)
+    def test_failed_build_keeps_previous_record_untouched(self):
+        self.move(self.domain)
         (self.app / 'scripts/build.sh').write_text('exit 1\n')
         self.command('build', '--yes', ok=False)
-        self.assertEqual(self.saved()['domains'][0]['commit'], head)
+        self.assertEqual(self.record(), self.initial)
+
+    def test_failed_check_keeps_previous_record_untouched(self):
+        self.move(self.domain)
+        (self.app / 'scripts/check.sh').write_text('exit 1\n')
+        self.command('check', '--yes', ok=False)
+        self.assertEqual(self.record(), self.initial)
 
     def test_status_has_one_notice_for_moved_parts(self):
         self.move(self.domain)
         output = self.command('status')
         self.assertEqual(output.count('finance has new commits since the last build.'), 1)
+
+    def test_release_requires_successful_build_for_current_record(self):
+        output = self.command('release', '--tag', 'setup-v1.2.3-test', ok=False)
+        self.assertEqual(output.strip(), 'Run ./bilibi build first.')
+        self.command('build')
+        (self.app / 'setup.toml').write_text((self.app / 'setup.toml').read_text() + '# changed after build\n')
+        output = self.command('release', '--tag', 'setup-v1.2.3-test', ok=False)
+        self.assertEqual(output.strip(), 'Run ./bilibi build first.')
 
     def test_release_commits_record_only_and_pushes_existing_workflow_tag(self):
         head = self.move(self.domain)
@@ -274,6 +288,7 @@ class BuildRecordTest(WorkspaceFixture):
                     path.write_bytes(original)
 
     def test_release_with_committed_record_does_not_make_empty_commit(self):
+        self.command('build')
         before = self.git(self.app, 'rev-parse', 'HEAD')
         self.command('release', '--tag', 'setup-v2.0.0-test')
         self.assertEqual(self.git(self.app, 'rev-parse', 'HEAD'), before)

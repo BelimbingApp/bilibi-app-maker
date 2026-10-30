@@ -57,7 +57,7 @@ Your folder now has two remotes. `origin` is your application, where you push. `
 ./bilibi release --tag setup-v1.0.0
 ```
 
-Build asks about each part with new commits. Say yes to use them and save the build record, or no to build its saved version. Release commits that record and starts the GitHub release build. GitHub uses exactly those saved versions.
+Build asks about each part with new commits. Say yes to use them and save the build record only after the build succeeds, or no to build its saved version. Release requires a successful build of the current record, then commits it and starts the GitHub release build. GitHub uses exactly those saved versions.
 To install it on a server, follow [Release your setup](docs/guides/releasing.md#release-your-setup) and [Install a release](docs/guides/installing.md#install-a-release).
 
 ## Guides
