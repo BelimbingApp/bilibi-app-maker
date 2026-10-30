@@ -2,6 +2,8 @@
 
 The Bilibi app maker is the starting copy for your own application built on Bilibi. For example, you can combine the Bilibi Platform, Finance and your own private Extension in one application. The application records the exact versions of these parts, so you can release it to your servers and take Bilibi updates later.
 
+**Status:** version 0.1, in active development.
+
 ## When to use it
 
 Use Bilibi app maker to run your own Bilibi on your servers. For developing and contributing to Bilibi, use the [Platform repository](https://github.com/BelimbingApp/bilibi). 
