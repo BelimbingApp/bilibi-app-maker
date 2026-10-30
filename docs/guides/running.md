@@ -56,9 +56,9 @@ Run commands from the application's root folder. `./bilibi help` shows the same 
 | `./bilibi add <name>` | Adds a Domain or Extension, such as `finance`. You can also paste the `add` command that the Software page shows. | When you want a new business feature. Run `start` again afterwards. |
 | `./bilibi status` | Lists the Platform, Domains and Extensions, with their branches, your uncommitted changes, and any difference from the saved versions | When you want to see what you have changed |
 | `./bilibi update` | Gets your team's latest pushed changes, and switches every source to the versions saved in `setup.toml` | Before you start work, to match your team |
-| `./bilibi check` | Asks about new commits, saves your choices, then builds and tests against an empty test database. Needs Docker. | Before a release |
-| `./bilibi build` | Asks about new commits, saves your choices, then builds the release program. Needs Docker. | When you make a release; see [Release your setup](releasing.md#release-your-setup) |
-| `./bilibi release --tag setup-vX.Y.Z` | Commits the build record and starts the GitHub release workflow. Refuses other uncommitted application files. | After build and check pass |
+| `./bilibi check` | Asks about new commits, builds and tests against an empty test database, then saves your choices if it passes. Needs Docker. | Before a release |
+| `./bilibi build` | Asks about new commits, builds the release program, then saves your choices if it succeeds. Needs Docker. | When you make a release; see [Release your setup](releasing.md#release-your-setup) |
+| `./bilibi release --tag setup-vX.Y.Z` | Commits the build record and starts the GitHub release workflow. Refuses other uncommitted application files, or a record that has no successful build or check. | After build and check pass |
 | `./bilibi setup` | Installs the tools and fetches the sources, without starting | When you want everything ready in advance |
 | `./bilibi help` | Shows the command list | Any time |
 
