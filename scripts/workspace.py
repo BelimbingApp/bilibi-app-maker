@@ -136,6 +136,7 @@ def setup():
     recipe.materialize()
     hooks()
     output_paths()
+    os.environ['BILIBI_FRONT_DOOR'] = '1'
     run('bash', ROOT / 'scripts/dev-setup.sh', PLATFORM)
     print('Setup complete. Local sources and runtime data are preserved. Run ./bilibi start.')
 
@@ -610,8 +611,8 @@ def main():
               'To change Bilibi itself, work in https://github.com/BelimbingApp/bilibi instead.\n\n'
               'Usage: ./bilibi <command>\n\n'
               'Run your application on this computer\n'
-              '  start         Install anything missing, run the application, and open it\n'
-              '                in your browser.\n'
+              '  start         Install anything missing and run the application. The first\n'
+              '                start opens it in your browser.\n'
               '  add <name>    Add a Domain or Extension, such as: ./bilibi add finance\n'
               '                Or paste the add command that the Software page shows.\n'
               '                Then run ./bilibi start again to use it.\n'

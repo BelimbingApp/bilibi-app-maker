@@ -23,7 +23,7 @@ cd my-bilibi
 
 Your copy opens at `https://bilibi.localhost`. If you run more than one Bilibi on this computer, give each its own name with `BILIBI_DEV_HOST=<name>.localhost` in `.env` beside `./bilibi`; see [Settings](docs/guides/settings.md).
 
-The first start installs what is missing, such as Rust, PostgreSQL and Node, and builds Bilibi, so it takes a while. Then Bilibi opens in your browser at the sign-in page. Sign in as `ai@agent.my` / `bilibi-dev`. You now have the Platform on its own: sign-in, companies, people, users, permissions and audit.
+The first start installs what is missing, such as Rust, PostgreSQL and Node, and builds Bilibi, so it takes a while. On the first start, Bilibi opens in your browser at the sign-in page. Later starts print its address. Sign in as `ai@agent.my` / `bilibi-dev`. You now have the Platform on its own: sign-in, companies, people, users, permissions and audit.
 
 2. Add the business features you want. A Domain is one business area, such as Finance:
 
