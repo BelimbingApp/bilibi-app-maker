@@ -43,7 +43,14 @@ mkdir -p licenses
 git mv LICENSE licenses/bilibi-app-maker.txt
 ```
 
-Put your chosen licence text in the root `LICENSE`, then run:
+Put your chosen licence text in the root `LICENSE`, then save it as a commit so the push below carries it:
+
+```sh
+git add LICENSE licenses
+git commit -m "Set application licence"
+```
+
+Then connect your repository and push:
 
 ```sh
 git remote rename origin upstream
