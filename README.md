@@ -36,7 +36,21 @@ The first start installs what is missing, such as Rust, PostgreSQL and Node, and
 
 The **Software** page in Bilibi lists what is available, and shows the exact `add` command for each one.
 
-3. Make it yours. Create an empty private repository on GitHub, for example `your-company/my-bilibi`, then run:
+3. Make it yours. Create an empty private repository on GitHub, for example `your-company/my-bilibi`. Before you push, choose your application's licence. A private application usually starts with `Copyright (c) <year> <owner>. All rights reserved.` in its root `LICENSE`; an open-source application should use a licence you choose. The maker's MIT licence is not your application's licence, so keep it separately:
+
+```sh
+mkdir -p licenses
+git mv LICENSE licenses/bilibi-app-maker.txt
+```
+
+Put your chosen licence text in the root `LICENSE`, then save it as a commit so the push below carries it:
+
+```sh
+git add LICENSE licenses
+git commit -m "Set application licence"
+```
+
+Then connect your repository and push:
 
 ```sh
 git remote rename origin upstream
