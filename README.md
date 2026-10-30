@@ -36,7 +36,7 @@ The first start installs what is missing, such as Rust, PostgreSQL and Node, and
 
 The **Software** page in Bilibi lists what is available, and shows the exact `add` command for each one.
 
-3. Make it yours. Create an empty private repository on GitHub, for example `your-company/my-bilibi`. Before you push, choose your application's licence. A private application usually starts with `Copyright (c) <year> <owner>. All rights reserved.` in its root `LICENSE`; an open-source application should use a licence you choose. The maker's MIT licence is not your application's licence, so keep it separately:
+3. Make it yours. Create an empty private repository on GitHub, for example `your-company/my-bilibi`. Before you push, choose your application's licence. A private application usually starts with `Copyright (c) <year> <owner>. All rights reserved.` in its root `LICENSE`; an open-source application should use a licence you choose. The maker's MIT licence is not your application's licence, so keep it separately. If your copy still has a root `LICENSE` (you cloned the maker directly), move it with:
 
 ```sh
 mkdir -p licenses
